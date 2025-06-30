@@ -115,13 +115,14 @@ const initialFormData: NewComprehensiveCustomerData = {
   reason_for_visit: undefined,
   lead_source: undefined,
   age_of_end_user: undefined,
-  interest_level: 'Not Assessed',
+  interest_level: 'None',
   interest_categories: [JSON.parse(JSON.stringify(initialInterestCategoryItem))],
   customer_preference_design_selected: false,
   customer_preference_wants_more_discount: false,
   customer_preference_checking_other_jewellers: false,
   customer_preference_felt_less_variety: false,
   customer_preference_others: '',
+  purchase_amount: undefined,
   follow_up_date: '',
   summary_notes: '',
   assigned_salesperson_id: '',
@@ -575,6 +576,24 @@ export default function AddComprehensiveCustomerPage() {
                                     <input type="checkbox" id={`customer_preference_design_selected_${interestItem.id}`} name="customer_preference_design_selected" checked={interestItem.customer_preference_design_selected} onChange={(e) => handleInterestPreferenceChange(interestItem.id, 'customer_preference_design_selected', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                     <Label htmlFor={`customer_preference_design_selected_${interestItem.id}`}>Design Selected?</Label>
                                 </div>
+                                {interestItem.customer_preference_design_selected && (
+                                    <div className="space-y-1 ml-6 p-3 bg-green-50 border border-green-200 rounded-md">
+                                        <Label htmlFor={`purchase_amount_${interestItem.id}`} className="text-green-800 font-medium">Purchase Amount (₹) *</Label>
+                                        <Input 
+                                            id={`purchase_amount_${interestItem.id}`} 
+                                            name="purchase_amount" 
+                                            type="number" 
+                                            min="0" 
+                                            step="0.01"
+                                            value={formData.purchase_amount || ''} 
+                                            onChange={handleChange} 
+                                            placeholder="e.g., 75000.00" 
+                                            className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                                            required={interestItem.customer_preference_design_selected}
+                                        />
+                                        <p className="text-xs text-green-700">This amount will be counted as converted revenue.</p>
+                                    </div>
+                                )}
                                 <div className="flex items-center space-x-2">
                                     <input type="checkbox" id={`customer_preference_wants_more_discount_${interestItem.id}`} name="customer_preference_wants_more_discount" checked={interestItem.customer_preference_wants_more_discount} onChange={(e) => handleInterestPreferenceChange(interestItem.id, 'customer_preference_wants_more_discount', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                     <Label htmlFor={`customer_preference_wants_more_discount_${interestItem.id}`}>Wants More Discount</Label>

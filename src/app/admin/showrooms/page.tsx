@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,70 +28,18 @@ import {
     ToggleLeft, 
     ToggleRight, 
     Trash2,
-    ChevronDown, 
-    ChevronUp, 
-    ChevronsUpDown
+    Loader2
 } from 'lucide-react';
+import { getShowroomsForAdminView, updateShowroomStatus, ShowroomForAdminView } from './actions';
 
-interface Showroom {
-    id: string;
-    name: string;
-    location: string; // e.g., "Jaipur, Rajasthan"
-    addressSnippet: string;
-    mainContact: string; // Manager name or primary contact
-    salespeopleCount: number;
-    ytdSales: string; // Formatted string like "₹25,00,000"
-    status: "Active" | "Inactive";
-    dateAdded: string;
-}
-
-// Placeholder data
-const initialShowrooms: Showroom[] = [
-    { 
-        id: 'sr001', 
-        name: 'Jaipur Flagship Store',
-        location: 'Jaipur, Rajasthan',
-        addressSnippet: '123 Johari Bazaar Rd',
-        mainContact: 'Ms. Priya Sharma',
-        salespeopleCount: 15,
-        ytdSales: '₹25,75,000',
-        status: 'Active',
-        dateAdded: '2020-01-15'
-    },
-    { 
-        id: 'sr002', 
-        name: 'Mumbai Bandra Boutique',
-        location: 'Mumbai, Maharashtra',
-        addressSnippet: '45 Linking Road, Bandra West',
-        mainContact: 'Mr. Anand Verma',
-        salespeopleCount: 10,
-        ytdSales: '₹18,50,200',
-        status: 'Active',
-        dateAdded: '2021-03-20'
-    },
-    { 
-        id: 'sr003', 
-        name: 'Delhi CP Showroom',
-        location: 'Delhi, NCR',
-        addressSnippet: 'A-5 Connaught Place',
-        mainContact: 'Ms. Sunita Rao',
-        salespeopleCount: 12,
-        ytdSales: '₹15,10,800',
-        status: 'Active',
-        dateAdded: '2022-06-10'
-    },
-    { 
-        id: 'sr004', 
-        name: 'Bangalore Indiranagar',
-        location: 'Bangalore, Karnataka',
-        addressSnippet: '100 Feet Road, Indiranagar',
-        mainContact: 'Mr. Rajeev Menon',
-        salespeopleCount: 8,
-        ytdSales: '₹9,80,000',
-        status: 'Inactive',
-        dateAdded: '2023-01-05'
-    },
-];
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+};
 
 const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -104,30 +52,92 @@ const formatDate = (dateString: string) => {
     }
 };
 
+const getLocationDisplay = (showroom: ShowroomForAdminView) => {
+    const parts = [];
+    if (showroom.city) parts.push(showroom.city);
+    if (showroom.state) parts.push(showroom.state);
+    return parts.join(', ') || 'Location not specified';
+};
+
+const getAddressDisplay = (showroom: ShowroomForAdminView) => {
+    return showroom.location_address || 'Address not specified';
+};
+
 export default function ShowroomManagementPage() {
-    const [showrooms, setShowrooms] = useState<Showroom[]>(initialShowrooms);
+    const [showrooms, setShowrooms] = useState<ShowroomForAdminView[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
-    // TODO: Implement sorting logic
-    // const [sortColumn, setSortColumn] = useState<keyof Showroom | null>(null);
-    // const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    const handleToggleStatus = (showroomId: string) => {
-        setShowrooms(prevShowrooms => 
-            prevShowrooms.map(sr => 
-                sr.id === showroomId ? { ...sr, status: sr.status === 'Active' ? 'Inactive' : 'Active' } : sr
-            )
-        );
-        // TODO: API call to update status
+    useEffect(() => {
+        fetchShowrooms();
+    }, []);
+
+    const fetchShowrooms = async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const result = await getShowroomsForAdminView();
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setShowrooms(result.showrooms);
+            }
+        } catch (err: any) {
+            setError(err.message || 'Failed to load showrooms');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleToggleStatus = async (showroomId: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        
+        try {
+            const result = await updateShowroomStatus(showroomId, newStatus);
+            if (result.success) {
+                // Update local state
+                setShowrooms(prevShowrooms => 
+                    prevShowrooms.map(sr => 
+                        sr.id === showroomId ? { ...sr, status: newStatus } : sr
+                    )
+                );
+            } else {
+                alert(result.error || 'Failed to update showroom status');
+            }
+        } catch (err: any) {
+            alert(err.message || 'Failed to update showroom status');
+        }
     };
 
     const filteredShowrooms = showrooms.filter(sr => {
         const matchesSearch = sr.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               sr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              sr.location.toLowerCase().includes(searchTerm.toLowerCase());
+                              getLocationDisplay(sr).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (sr.manager?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
         const matchesStatus = statusFilter === "all" || sr.status.toLowerCase() === statusFilter;
         return matchesSearch && matchesStatus;
     });
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                Loading showrooms...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-10">
+                <div className="text-destructive text-lg mb-2">{error}</div>
+                <Button onClick={fetchShowrooms}>Try Again</Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -155,12 +165,12 @@ export default function ShowroomManagementPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 md:space-y-0 md:flex md:items-end md:gap-4">
                     <div className="flex-grow">
-                        <label htmlFor="showroomSearch" className="block text-sm font-medium text-muted-foreground mb-1.5">Search by Name, ID, Location</label>
+                        <label htmlFor="showroomSearch" className="block text-sm font-medium text-muted-foreground mb-1.5">Search by Name, ID, Location, Manager</label>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 id="showroomSearch" 
-                                placeholder="e.g., Jaipur, SR001..." 
+                                placeholder="e.g., Ahmedabad, SR001, Manager name..." 
                                 className="pl-8" 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -178,8 +188,7 @@ export default function ShowroomManagementPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    {/* <Button><Filter className="h-4 w-4 mr-2"/> Apply</Button>
-                    <Button variant="ghost">Clear</Button> */} 
+                    <Button variant="ghost" onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}>Clear</Button>
                 </CardContent>
             </Card>
 
@@ -196,7 +205,7 @@ export default function ShowroomManagementPage() {
                                 <TableRow>
                                     <TableHead className="min-w-[200px]">Name</TableHead>
                                     <TableHead className="min-w-[150px]">Location</TableHead>
-                                    <TableHead>Main Contact</TableHead>
+                                    <TableHead>Manager</TableHead>
                                     <TableHead className="text-center">Salespeople</TableHead>
                                     <TableHead className="text-right">YTD Sales</TableHead>
                                     <TableHead className="text-center">Status</TableHead>
@@ -211,21 +220,32 @@ export default function ShowroomManagementPage() {
                                             <Link href={`/admin/showrooms/${sr.id}`} className="hover:underline text-primary">
                                                 {sr.name}
                                             </Link>
-                                            <p className="text-xs text-muted-foreground block md:hidden">{sr.addressSnippet}</p>
+                                            <p className="text-xs text-muted-foreground block md:hidden">{getAddressDisplay(sr)}</p>
                                         </TableCell>
                                         <TableCell>
-                                            {sr.location}
-                                            <p className="text-xs text-muted-foreground hidden md:block">{sr.addressSnippet}</p>
+                                            {getLocationDisplay(sr)}
+                                            <p className="text-xs text-muted-foreground hidden md:block">{getAddressDisplay(sr)}</p>
                                         </TableCell>
-                                        <TableCell>{sr.mainContact}</TableCell>
-                                        <TableCell className="text-center">{sr.salespeopleCount}</TableCell>
-                                        <TableCell className="text-right font-mono">{sr.ytdSales}</TableCell>
+                                        <TableCell>
+                                            {sr.manager?.full_name || 'No Manager Assigned'}
+                                            {sr.manager?.email && (
+                                                <p className="text-xs text-muted-foreground">{sr.manager.email}</p>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center">{sr.salesperson_count}</TableCell>
+                                        <TableCell className="text-right font-mono">
+                                            {sr.ytd_sales > 0 ? formatCurrency(sr.ytd_sales) : '₹0'}
+                                        </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant={sr.status === 'Active' ? 'default' : 'destructive'} className="cursor-pointer text-xs" onClick={() => handleToggleStatus(sr.id)}>
-                                                {sr.status}
+                                            <Badge 
+                                                variant={sr.status === 'active' ? 'default' : 'destructive'} 
+                                                className="cursor-pointer text-xs" 
+                                                onClick={() => handleToggleStatus(sr.id, sr.status)}
+                                            >
+                                                {sr.status.charAt(0).toUpperCase() + sr.status.slice(1)}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{formatDate(sr.dateAdded)}</TableCell>
+                                        <TableCell>{formatDate(sr.created_at)}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -246,9 +266,9 @@ export default function ShowroomManagementPage() {
                                                          <Users className="mr-2 h-4 w-4"/>Manage Managers
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleToggleStatus(sr.id)} className="cursor-pointer">
-                                                        {sr.status === 'Active' ? <ToggleLeft className="mr-2 h-4 w-4 text-destructive"/> : <ToggleRight className="mr-2 h-4 w-4 text-success"/>}
-                                                        {sr.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                    <DropdownMenuItem onClick={() => handleToggleStatus(sr.id, sr.status)}>
+                                                        {sr.status === 'active' ? <ToggleLeft className="mr-2 h-4 w-4 text-destructive"/> : <ToggleRight className="mr-2 h-4 w-4 text-success"/>}
+                                                        {sr.status === 'active' ? 'Deactivate' : 'Activate'}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                                                         <Trash2 className="mr-2 h-4 w-4"/>Delete Showroom
@@ -268,7 +288,6 @@ export default function ShowroomManagementPage() {
                         </Table>
                     </div>
                 </CardContent>
-                {/* TODO: Add Pagination Component */}
             </Card>
         </div>
     );

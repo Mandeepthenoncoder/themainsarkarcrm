@@ -20,7 +20,8 @@ export async function getSalespeopleForAdminView(): Promise<{ salespeople: Sales
     const supabase = createServerActionClient<Database>({ cookies });
 
     try {
-        const { data, error } = await supabase
+        // First, get all salespeople
+        const { data: salespeopleData, error: salespeopleError } = await supabase
             .from('profiles')
             .select(`
                 id,
@@ -31,30 +32,65 @@ export async function getSalespeopleForAdminView(): Promise<{ salespeople: Sales
                 status,
                 created_at,
                 assigned_showroom_id,
-                showrooms (id, name),
-                supervising_manager_id,
-                manager:profiles!supervising_manager_id (id, full_name)
+                supervising_manager_id
             `)
             .eq('role', 'salesperson');
 
-        if (error) {
-            console.error("Error fetching salespeople for admin view:", error);
-            return { salespeople: [], error: error.message };
+        if (salespeopleError) {
+            console.error("Error fetching salespeople:", salespeopleError);
+            return { salespeople: [], error: salespeopleError.message };
         }
-        
-        const salespeople = data.map(sp => ({
-            id: sp.id,
-            full_name: sp.full_name,
-            employee_id: sp.employee_id,
-            email: sp.email,
-            avatar_url: sp.avatar_url,
-            status: sp.status,
-            created_at: sp.created_at,
-            assigned_showroom: sp.showrooms ? { id: sp.assigned_showroom_id!, name: sp.showrooms.name } : null,
-            supervising_manager: sp.manager ? { id: sp.supervising_manager_id!, full_name: sp.manager.full_name } : null
-        }));
 
-        return { salespeople: salespeople as SalespersonForAdminView[], error: null };
+        if (!salespeopleData || salespeopleData.length === 0) {
+            return { salespeople: [], error: null };
+        }
+
+        // Now enrich each salesperson with their showroom and manager info
+        const enrichedSalespeople = await Promise.all(
+            salespeopleData.map(async (salesperson) => {
+                // Get showroom info if assigned
+                let assignedShowroom = null;
+                if (salesperson.assigned_showroom_id) {
+                    const { data: showroomData } = await supabase
+                        .from('showrooms')
+                        .select('id, name')
+                        .eq('id', salesperson.assigned_showroom_id)
+                        .single();
+                    
+                    if (showroomData) {
+                        assignedShowroom = showroomData;
+                    }
+                }
+
+                // Get supervising manager info if assigned
+                let supervisingManager = null;
+                if (salesperson.supervising_manager_id) {
+                    const { data: managerData } = await supabase
+                        .from('profiles')
+                        .select('id, full_name')
+                        .eq('id', salesperson.supervising_manager_id)
+                        .single();
+                    
+                    if (managerData) {
+                        supervisingManager = managerData;
+                    }
+                }
+
+                return {
+                    id: salesperson.id,
+                    full_name: salesperson.full_name,
+                    employee_id: salesperson.employee_id,
+                    email: salesperson.email,
+                    avatar_url: salesperson.avatar_url,
+                    status: salesperson.status,
+                    created_at: salesperson.created_at,
+                    assigned_showroom: assignedShowroom,
+                    supervising_manager: supervisingManager
+                } as SalespersonForAdminView;
+            })
+        );
+
+        return { salespeople: enrichedSalespeople, error: null };
 
     } catch (e: any) {
         console.error('Unexpected error in getSalespeopleForAdminView:', e);

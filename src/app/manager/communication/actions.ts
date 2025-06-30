@@ -48,7 +48,7 @@ export async function getTeamMessagesAction(): Promise<GetTeamMessagesResult> {
 
   try {
     const { data, error } = await supabase
-      .from('team_messages')
+      .from('announcements')
       .select(`
         id,
         title,
@@ -61,8 +61,7 @@ export async function getTeamMessagesAction(): Promise<GetTeamMessagesResult> {
           full_name
         )
       `)
-      // TODO: If showroom_id is implemented, add a .eq('showroom_id', managerShowroomId) filter here
-      // Assumes managerShowroomId is fetched from the manager's profile.
+      .eq('status', 'Published')
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -72,7 +71,14 @@ export async function getTeamMessagesAction(): Promise<GetTeamMessagesResult> {
     }
 
     const displayMessages: DisplayTeamMessage[] = (data || []).map(msg => ({
-        ...msg,
+        id: msg.id,
+        title: msg.title,
+        content: msg.content,
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        author_id: msg.author_id,
+        is_pinned: msg.is_pinned || false,
+        profiles: msg.profiles,
         author_full_name_display: msg.profiles?.full_name || 'Unknown Author'
     }));
 
@@ -122,8 +128,11 @@ export async function createTeamMessageAction(data: CreateMessageData): Promise<
     };
 
     const { data: newMessage, error: insertError } = await supabase
-      .from('team_messages')
-      .insert(messageToInsert)
+      .from('announcements')
+      .insert({
+        ...messageToInsert,
+        status: 'Published'
+      })
       .select(`
         id,
         title,
@@ -156,11 +165,19 @@ export async function createTeamMessageAction(data: CreateMessageData): Promise<
     }
     
     const displayMessage: DisplayTeamMessage = {
-        ...newMessage,
+        id: newMessage.id,
+        title: newMessage.title,
+        content: newMessage.content,
+        created_at: newMessage.created_at,
+        updated_at: newMessage.updated_at,
+        author_id: newMessage.author_id,
+        is_pinned: newMessage.is_pinned || false,
+        profiles: newMessage.profiles,
         author_full_name_display: newMessage.profiles?.full_name || 'Current Manager'
     };
 
     revalidatePath('/manager/communication'); // Revalidate to show new message on the list
+    revalidatePath('/manager/dashboard'); // Also revalidate dashboard
     return { success: true, message: displayMessage };
 
   } catch (e: any) {

@@ -80,6 +80,7 @@ export default async function AdminAllCustomersPage({
                                     <TableHead className="min-w-[150px]">Showroom</TableHead>
                                     <TableHead className="min-w-[150px]">Salesperson</TableHead>
                                     <TableHead className="text-center min-w-[120px]">Lead Status</TableHead>
+                                    <TableHead>Purchase Amount</TableHead>
                                     <TableHead>Date Added</TableHead>
                                     <TableHead>Last Contacted</TableHead>
                                 </TableRow>
@@ -123,12 +124,21 @@ export default async function AdminAllCustomersPage({
                                                 {customer.lead_status}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell className="text-xs">
+                                            {customer.purchase_amount && customer.purchase_amount > 0 ? (
+                                                <span className="font-semibold text-green-600">
+                                                    ₹{customer.purchase_amount.toLocaleString('en-IN')}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-xs">{formatDate(customer.created_at)}</TableCell>
                                         <TableCell className="text-xs">{formatDate(customer.last_contacted_date || undefined)}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                                             No customers found.
                                         </TableCell>
                                     </TableRow>

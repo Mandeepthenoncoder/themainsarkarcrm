@@ -101,6 +101,14 @@ export default function AdminCustomerDetailPage() {
                              <div><dt className="text-xs font-medium text-muted-foreground">Phone</dt><dd className="mt-0.5 text-sm">{customer.phone_number || 'N/A'}</dd></div>
                              {fullAddress && <div className="md:col-span-2"><dt className="text-xs font-medium text-muted-foreground">Address</dt><dd className="mt-0.5 text-sm">{fullAddress}</dd></div>}
                              {customer.catchment_area && <div><dt className="text-xs font-medium text-muted-foreground">Catchment Area</dt><dd className="mt-0.5 text-sm">{customer.catchment_area}</dd></div>}
+                             
+                             {customer.purchase_amount && customer.purchase_amount > 0 && (
+                                 <div className="md:col-span-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                                     <dt className="text-xs font-medium text-green-800 flex items-center">💰 Converted Revenue</dt>
+                                     <dd className="mt-0.5 text-lg font-semibold text-green-700">₹{customer.purchase_amount.toLocaleString('en-IN')}</dd>
+                                     <p className="text-xs text-green-600 mt-1">Customer has made a purchase - counted as converted revenue</p>
+                                 </div>
+                             )}
                              {customer.community && <div><dt className="text-xs font-medium text-muted-foreground">Community</dt><dd className="mt-0.5 text-sm">{customer.community}</dd></div>}
                              {customer.mother_tongue && <div><dt className="text-xs font-medium text-muted-foreground">Mother Tongue</dt><dd className="mt-0.5 text-sm">{customer.mother_tongue}</dd></div>}
                              {customer.reason_for_visit && <div><dt className="text-xs font-medium text-muted-foreground">Reason for Visit</dt><dd className="mt-0.5 text-sm">{customer.reason_for_visit}</dd></div>}

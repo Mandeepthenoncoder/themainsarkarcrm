@@ -20,7 +20,8 @@ export async function getManagersForAdminView(): Promise<{ managers: ManagerForA
     const supabase = createServerActionClient<Database>({ cookies });
 
     try {
-        const { data: managersData, error } = await supabase
+        // First, get all managers
+        const { data: managersData, error: managersError } = await supabase
             .from('profiles')
             .select(`
                 id,
@@ -29,25 +30,44 @@ export async function getManagersForAdminView(): Promise<{ managers: ManagerForA
                 email,
                 status,
                 created_at,
-                avatar_url,
-                showrooms (id, name),
-                salespeople_count:profiles!supervising_manager_id (count)
+                avatar_url
             `)
             .eq('role', 'manager');
 
-        if (error) {
-            console.error("Error fetching managers for admin view:", error);
-            return { managers: [], error: error.message };
+        if (managersError) {
+            console.error("Error fetching managers:", managersError);
+            return { managers: [], error: managersError.message };
         }
-        
-        const managers = managersData.map(manager => ({
-            ...manager,
-            assigned_showrooms: manager.showrooms ? (Array.isArray(manager.showrooms) ? manager.showrooms : [manager.showrooms]) : [],
-            salespeople_supervised_count: (manager.salespeople_count as any)?.[0]?.count || 0,
-        }));
-        
-        // The type needs to be asserted because Supabase's generated types can be tricky with relations
-        return { managers: managers as any as ManagerForAdminView[], error: null };
+
+        if (!managersData || managersData.length === 0) {
+            return { managers: [], error: null };
+        }
+
+        // Now enrich each manager with their showrooms and salespeople count
+        const enrichedManagers = await Promise.all(
+            managersData.map(async (manager) => {
+                // Get showrooms this manager manages (where showrooms.manager_id = manager.id)
+                const { data: managedShowrooms } = await supabase
+                    .from('showrooms')
+                    .select('id, name')
+                    .eq('manager_id', manager.id);
+
+                // Get count of salespeople supervised by this manager
+                const { count: salespeopleCount } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('supervising_manager_id', manager.id)
+                    .eq('role', 'salesperson');
+
+                return {
+                    ...manager,
+                    assigned_showrooms: managedShowrooms || [],
+                    salespeople_supervised_count: salespeopleCount || 0
+                } as ManagerForAdminView;
+            })
+        );
+
+        return { managers: enrichedManagers, error: null };
 
     } catch (e: any) {
         console.error('Unexpected error in getManagersForAdminView:', e);

@@ -120,8 +120,8 @@ export default async function SalespersonDashboardPage() {
 
   const { data: customersData, error: customersError } = await supabase
     .from('customers')
-    .select('id, full_name, created_at, interest_categories_json, follow_up_date') // Added follow_up_date
-    .eq('assigned_salesperson_id', user.id) as { data: (Customer & { follow_up_date?: string | null })[] | null; error: any };
+    .select('id, full_name, created_at, interest_categories_json, follow_up_date, purchase_amount') // Added purchase_amount
+    .eq('assigned_salesperson_id', user.id) as { data: (Customer & { follow_up_date?: string | null; purchase_amount?: number | null })[] | null; error: any };
 
   const { data: appointmentsData, error: appointmentsError } = await supabase
     .from('appointments')
@@ -144,8 +144,12 @@ export default async function SalespersonDashboardPage() {
 
   // --- Data Processing & Calculations ---
   let totalPipelineValue = 0;
+  let totalConvertedRevenue = 0;
+  let convertedCustomersCount = 0;
+
   if (customersData) {
     customersData.forEach((customer) => { // customer is already typed from the cast above
+      // Calculate pipeline value from interest categories
       if (customer.interest_categories_json) {
         customer.interest_categories_json.forEach((category: any) => {
           if (category.products && Array.isArray(category.products)) {
@@ -155,8 +159,18 @@ export default async function SalespersonDashboardPage() {
           }
         });
       }
+      
+      // Calculate converted revenue
+      if (customer.purchase_amount && customer.purchase_amount > 0) {
+        totalConvertedRevenue += customer.purchase_amount;
+        convertedCustomersCount++;
+      }
     });
   }
+
+  const conversionRate = customersData?.length 
+    ? ((convertedCustomersCount / customersData.length) * 100).toFixed(1) 
+    : '0.0';
 
   const upcomingAppointments = appointmentsData?.filter(
     appt => new Date(appt.appointment_datetime) >= now && (appt.status === 'Scheduled' || appt.status === 'Rescheduled')
@@ -229,38 +243,47 @@ export default async function SalespersonDashboardPage() {
         </header>
 
         {/* Key Metrics Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {/* Total Pipeline Value Card - NEW */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 md:gap-6">
+          {/* Total Converted Revenue Card - FEATURED */}
+          <Card className="lg:col-span-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center text-green-800">💰 Converted Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold text-green-700">{formatCurrency(totalConvertedRevenue)}</p>
+              <p className="text-sm text-green-600 mt-1">{convertedCustomersCount} customers converted • {conversionRate}% conversion rate</p>
+            </CardContent>
+          </Card>
+
+          {/* Total Pipeline Value Card */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">Total Pipeline Value</CardTitle>
+              <CardTitle className="text-lg flex items-center">Pipeline Value</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-primary">{formatCurrency(totalPipelineValue)}</p>
-              <p className="text-xs text-muted-foreground">Estimated value from customer interests</p>
+              <p className="text-xs text-muted-foreground">Estimated from interests</p>
             </CardContent>
           </Card>
         
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Upcoming Appointments</CardTitle>
+              <CardTitle className="text-lg">Appointments</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{upcomingAppointments.length}</p>
               <Link href="/salesperson/appointments" className="text-sm text-muted-foreground hover:text-primary flex items-center">
-                View all appointments <ExternalLink className="h-3 w-3 ml-1" />
+                View all <ExternalLink className="h-3 w-3 ml-1" />
               </Link>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">New Customers (Week)</CardTitle>
+              <CardTitle className="text-lg">New Customers</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold">{newCustomersThisWeek}</p>
-              <Link href="/salesperson/customers" className="text-sm text-muted-foreground hover:text-primary flex items-center">
-                View customer list <ExternalLink className="h-3 w-3 ml-1" />
-              </Link>
+              <p className="text-xs text-muted-foreground">This week</p>
             </CardContent>
           </Card>
           <Card>
@@ -270,7 +293,7 @@ export default async function SalespersonDashboardPage() {
             <CardContent>
               <p className="text-3xl font-bold">{pendingTasksCount}</p>
               <Link href="/salesperson/tasks?filter=pending" className="text-sm text-muted-foreground hover:text-primary flex items-center">
-                Manage tasks <ExternalLink className="h-3 w-3 ml-1" />
+                Manage <ExternalLink className="h-3 w-3 ml-1" />
               </Link>
             </CardContent>
           </Card>

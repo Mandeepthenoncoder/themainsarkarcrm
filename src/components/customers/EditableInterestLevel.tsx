@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 // Define your interest level enum values here - these should match your Supabase enum
 const INTEREST_LEVEL_OPTIONS = [
-  'Hot', 'Warm', 'Cold', 'Not Assessed'
+  'Hot', 'Warm', 'Cold', 'None'
 ] as const;
 
 type InterestLevel = typeof INTEREST_LEVEL_OPTIONS[number];
@@ -34,7 +34,7 @@ const getInterestLevelDisplayProps = (level: InterestLevel | null) => {
       return { className: 'bg-orange-100 text-orange-700 border-orange-300', Icon: Thermometer };
     case 'Cold':
       return { className: 'bg-blue-100 text-blue-700 border-blue-300', Icon: Snowflake };
-    case 'Not Assessed':
+    case 'None':
     default:
       return { className: 'bg-slate-100 text-slate-700 border-slate-300', Icon: Edit2 }; // Using Edit2 as a placeholder for unassessed
   }

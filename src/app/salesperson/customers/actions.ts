@@ -231,13 +231,14 @@ export interface NewComprehensiveCustomerData {
   reason_for_visit?: string | null;
   lead_source?: string | null;
   age_of_end_user?: string | null;
-  interest_level?: 'Hot' | 'Warm' | 'Cold' | 'Not Assessed' | null;
+  interest_level?: 'Hot' | 'Warm' | 'Cold' | 'None' | null;
   interest_categories: InterestCategoryItem[];
   customer_preference_design_selected?: boolean;
   customer_preference_wants_more_discount?: boolean;
   customer_preference_checking_other_jewellers?: boolean;
   customer_preference_felt_less_variety?: boolean;
   customer_preference_others?: string | null;
+  purchase_amount?: number | null; // Converted revenue when design is selected
   follow_up_date?: string | null;
   summary_notes?: string | null; // This will map to 'notes' in the DB for general visit summary
   assigned_salesperson_id: string;
@@ -281,7 +282,7 @@ export async function createComprehensiveCustomerAction(
     reason_for_visit: data.reason_for_visit,
     lead_source: data.lead_source,
     age_of_end_user: data.age_of_end_user,
-    interest_level: data.interest_level || 'Not Assessed',
+    interest_level: data.interest_level || 'None',
     // Storing as JSONB
     interest_categories_json: data.interest_categories.length > 0 ? data.interest_categories.map(interest => ({
         category_type: interest.category_type,
@@ -299,6 +300,7 @@ export async function createComprehensiveCustomerAction(
     assigned_salesperson_id: data.assigned_salesperson_id,
     assigned_showroom_id: profile.assigned_showroom_id,
     monthly_saving_scheme_status: data.monthly_saving_scheme_status,
+    purchase_amount: data.purchase_amount || null,
     // Initialize logs as empty arrays if needed, or handle null in UI
     visit_logs: [], 
     call_logs: []
@@ -364,7 +366,7 @@ export async function updateComprehensiveCustomerAction(
     reason_for_visit: data.reason_for_visit,
     lead_source: data.lead_source,
     age_of_end_user: data.age_of_end_user,
-    interest_level: data.interest_level || 'Not Assessed',
+    interest_level: data.interest_level || 'None',
     interest_categories_json: data.interest_categories.length > 0 ? data.interest_categories.map(interest => ({
         category_type: interest.category_type,
         products: interest.products,
@@ -380,6 +382,7 @@ export async function updateComprehensiveCustomerAction(
     notes: data.summary_notes,
     assigned_salesperson_id: data.assigned_salesperson_id,
     monthly_saving_scheme_status: data.monthly_saving_scheme_status,
+    purchase_amount: data.purchase_amount || null,
     updated_at: new Date().toISOString(),
   };
 
@@ -521,7 +524,7 @@ export async function addVisitLogAction(
 // Assuming your Database types define this enum, or you have it defined elsewhere
 // For example: export type CustomerInterestLevel = Database["public"]["Enums"]["customer_interest_level_enum"];
 // If not, define it explicitly:
-type CustomerInterestLevel = 'Hot' | 'Warm' | 'Cold' | 'Not Assessed';
+type CustomerInterestLevel = 'Hot' | 'Warm' | 'Cold' | 'None';
 
 export async function updateCustomerInterestLevelAction(
   customerId: string,

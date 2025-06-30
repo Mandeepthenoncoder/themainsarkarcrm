@@ -16,7 +16,8 @@ import {
   Target,    // For Goals
   ShieldAlert, // For Escalations
   TrendingUp, // For New Customers
-  ListChecks // For tasks/follow-ups icon consistency
+  ListChecks, // For tasks/follow-ups icon consistency
+  DollarSign // For converted revenue
 } from 'lucide-react';
 import { redirect } from 'next/navigation';
 // import { Database } from '@/lib/database.types'; // No longer needed directly
@@ -49,11 +50,11 @@ export default async function ManagerDashboardPage() {
   if (!result.success || !result.data) {
     // Handle error state, maybe redirect to login or show an error page
     // For now, showing a simple error message. Can be more sophisticated.
-    console.error("Dashboard load error:", result.error);
-    if (result.error === 'User not authenticated.' || result.error?.includes('Access Denied')){
+    console.error("Dashboard load error:", result.success ? 'No data' : result.error);
+    if (!result.success && (result.error === 'User not authenticated.' || result.error?.includes('Access Denied'))){
         redirect('/login'); // Or a generic error page
     }
-    return <div className="p-6"><Card><CardHeader><CardTitle>Error</CardTitle></CardHeader><CardContent><p>{result.error || "Could not load dashboard data."}</p></CardContent></Card></div>;
+    return <div className="p-6"><Card><CardHeader><CardTitle>Error</CardTitle></CardHeader><CardContent><p>{!result.success ? result.error : "Could not load dashboard data."}</p></CardContent></Card></div>;
   }
 
   const {
@@ -63,6 +64,9 @@ export default async function ManagerDashboardPage() {
     totalUpcomingTeamAppointments,
     totalPendingTeamFollowUps,
     newCustomersLast30Days,
+    totalTeamConvertedRevenue,
+    teamConvertedCustomersCount,
+    teamConversionRate,
     recentAnnouncements,
     activeGoals,
     openEscalationsCount
@@ -72,7 +76,12 @@ export default async function ManagerDashboardPage() {
     redirect('/login');
   }
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+  };
+
   const kpis = [
+    { title: '💰 Team Converted Revenue', value: formatCurrency(totalTeamConvertedRevenue), displayValue: formatCurrency(totalTeamConvertedRevenue), subtitle: `${teamConvertedCustomersCount} customers • ${teamConversionRate}% rate`, icon: DollarSign, href: '/manager/customers', featured: true },
     { title: 'Team Members', value: teamMembers.length, icon: Users, href: '/manager/salespeople' },
     { title: 'Total Team Customers', value: totalTeamCustomers, icon: Contact, href: '/manager/customers' },
     { title: 'Upcoming Appointments', value: totalUpcomingTeamAppointments, icon: CalendarCheck, href: '/manager/appointments' },
@@ -106,18 +115,21 @@ export default async function ManagerDashboardPage() {
       </header>
 
       {/* Key Metrics Section - Expanded */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
         {kpis.map((kpi) => (
-          <Card key={kpi.title} className="hover:shadow-lg transition-shadow duration-200 flex flex-col">
+          <Card key={kpi.title} className={`${kpi.featured ? 'xl:col-span-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' : ''} hover:shadow-lg transition-shadow duration-200 flex flex-col`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-              <kpi.icon className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className={`text-sm font-medium ${kpi.featured ? 'text-green-800' : 'text-muted-foreground'}`}>{kpi.title}</CardTitle>
+              <kpi.icon className={`h-5 w-5 ${kpi.featured ? 'text-green-600' : 'text-muted-foreground'}`} />
             </CardHeader>
             <CardContent className="flex-grow">
-              <div className="text-3xl font-bold text-foreground">{kpi.value}</div>
+              <div className={`text-3xl font-bold ${kpi.featured ? 'text-green-700' : 'text-foreground'}`}>{kpi.displayValue || kpi.value}</div>
+              {kpi.subtitle && (
+                <p className={`text-xs mt-1 ${kpi.featured ? 'text-green-600' : 'text-muted-foreground'}`}>{kpi.subtitle}</p>
+              )}
             </CardContent>
             <CardFooter className="pt-1">
-                 <Link href={kpi.href || '#'} className="text-xs text-primary hover:underline w-full">
+                 <Link href={kpi.href || '#'} className={`text-xs hover:underline w-full ${kpi.featured ? 'text-green-700' : 'text-primary'}`}>
                     View Details &rarr;
                 </Link>
             </CardFooter>

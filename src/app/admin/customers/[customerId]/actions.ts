@@ -36,6 +36,7 @@ export interface CustomerDetailForAdmin {
     call_logs: any[] | null;
     interest_level: string | null;
     monthly_saving_scheme_status?: string | null;
+    purchase_amount: number | null;
     // Relations
     showrooms: { name: string | null; } | null;
     profiles: { full_name: string | null; manager?: { full_name: string | null } } | null;
@@ -52,22 +53,75 @@ export async function getCustomerDetailsForAdmin(customerId: string): Promise<{
     const supabase = createServerActionClient<Database>({ cookies });
 
     try {
-        const { data, error } = await supabase
+        // First get the customer basic info
+        const { data: customerData, error: customerError } = await supabase
             .from('customers')
-            .select(`
-                *,
-                showrooms ( name ),
-                profiles!customers_assigned_salesperson_id_fkey ( full_name, manager:profiles!supervising_manager_id(full_name) )
-            `)
+            .select('*')
             .eq('id', customerId)
             .single();
 
-        if (error) {
-            console.error("Error fetching customer details for admin:", error);
-            return { customer: null, error: error.message };
+        if (customerError) {
+            console.error("Error fetching customer details for admin:", customerError);
+            return { customer: null, error: customerError.message };
         }
 
-        return { customer: data as CustomerDetailForAdmin, error: null };
+        if (!customerData) {
+            return { customer: null, error: "Customer not found." };
+        }
+
+        // Get showroom info if assigned
+        let showroomInfo = null;
+        if (customerData.assigned_showroom_id) {
+            const { data: showroomData } = await supabase
+                .from('showrooms')
+                .select('name')
+                .eq('id', customerData.assigned_showroom_id)
+                .single();
+            
+            if (showroomData) {
+                showroomInfo = showroomData;
+            }
+        }
+
+        // Get salesperson and manager info if assigned
+        let salespersonInfo = null;
+        if (customerData.assigned_salesperson_id) {
+            const { data: salespersonData } = await supabase
+                .from('profiles')
+                .select('full_name, supervising_manager_id')
+                .eq('id', customerData.assigned_salesperson_id)
+                .single();
+            
+            if (salespersonData) {
+                // Get manager info if salesperson has a supervising manager
+                let managerInfo = null;
+                if (salespersonData.supervising_manager_id) {
+                    const { data: managerData } = await supabase
+                        .from('profiles')
+                        .select('full_name')
+                        .eq('id', salespersonData.supervising_manager_id)
+                        .single();
+                    
+                    if (managerData) {
+                        managerInfo = managerData;
+                    }
+                }
+
+                salespersonInfo = {
+                    full_name: salespersonData.full_name,
+                    ...(managerInfo && { manager: managerInfo })
+                };
+            }
+        }
+
+        const enrichedCustomer = {
+            ...customerData,
+            purchase_amount: (customerData as any).purchase_amount || null,
+            showrooms: showroomInfo,
+            profiles: salespersonInfo
+        } as CustomerDetailForAdmin;
+
+        return { customer: enrichedCustomer, error: null };
 
     } catch (e: any) {
         console.error('Unexpected error in getCustomerDetailsForAdmin:', e);

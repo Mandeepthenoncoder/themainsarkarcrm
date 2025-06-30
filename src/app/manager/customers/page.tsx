@@ -155,6 +155,7 @@ export default async function ManagedCustomersPage() { // Renamed and made async
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Contact</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned To</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Purchase Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Next Follow-up</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Last Interaction</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
@@ -185,6 +186,15 @@ export default async function ManagedCustomersPage() { // Renamed and made async
                         {customer.profiles?.full_name || 'Unassigned'}
                     </div>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    {(customer as any).purchase_amount && (customer as any).purchase_amount > 0 ? (
+                      <span className="font-semibold text-green-600">
+                        ₹{(customer as any).purchase_amount.toLocaleString('en-IN')}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">{formatDateSafe(customer.follow_up_date)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground hidden lg:table-cell">{formatDateSafe(customer.last_contacted_date, true)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
@@ -198,7 +208,7 @@ export default async function ManagedCustomersPage() { // Renamed and made async
               ))}
               {(!customers || customers.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-12 text-center text-sm text-muted-foreground">
                     No customers found for your team.
                   </td>
                 </tr>

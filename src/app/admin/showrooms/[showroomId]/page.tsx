@@ -10,133 +10,54 @@ import { Separator } from "@/components/ui/separator";
 import {
     Store, 
     Edit, 
-    ArrowLeft, 
     MapPin, 
     Phone, 
     Mail, 
     CalendarDays, 
     Users, 
     UserCheck, 
-    DollarSign, 
-    LineChart, 
     UsersRound, 
     Activity, 
     AlertTriangle,
     ChevronLeft,
-    ChevronRight
+    Loader2
 } from 'lucide-react';
+import { getShowroomDetailForAdmin, DetailedShowroom } from '../actions';
 
-// Assuming Showroom interface is similar to one in list page or defined globally
-interface Showroom {
-    id: string;
-    name: string;
-    location: string; 
-    addressSnippet: string; // Simplified, full address would be better
-    fullAddress?: {
-        line1: string;
-        line2?: string;
-        city: string;
-        state: string;
-        postalCode: string;
-        country: string;
-    };
-    mainContact: string; // Or primaryManagerId/Name
-    contactPhone?: string;
-    contactEmail?: string;
-    salespeopleCount: number;
-    ytdSales: string; 
-    status: "Active" | "Inactive" | "Planned" | "Under Renovation";
-    openingDate?: string; // Date string
-    notes?: string;
-    // Potentially more detailed fields
-    managers?: Array<{id: string, name: string}>; // Example for assigned managers
-    kpis?: {
-        recentSalesTrend: 'up' | 'down' | 'flat';
-        customerCount: number;
-        leadConversionRate: string; // e.g. "25%"
-    };
-    recentActivity?: Array<{id: string, description: string, date: string, type: 'info' | 'alert'}>;
-}
-
-// Placeholder data - this would typically come from an API call based on showroomId
-const mockShowroomsList: Showroom[] = [
-    { 
-        id: 'sr001', 
-        name: 'Jaipur Flagship Store',
-        location: 'Jaipur, Rajasthan',
-        addressSnippet: '123 Johari Bazaar Rd',
-        fullAddress: { line1: '123 Johari Bazaar Rd', city: 'Jaipur', state: 'Rajasthan', postalCode: '302001', country: 'India'},
-        mainContact: 'Ms. Priya Sharma',
-        contactPhone: '+91 141 234 5678',
-        contactEmail: 'jaipur.store@mangathriya.com',
-        salespeopleCount: 15,
-        ytdSales: '₹25,75,000',
-        status: 'Active',
-        openingDate: '2020-01-15',
-        notes: 'Our flagship store, specializing in high-end bridal jewelry and custom designs. Features a private viewing lounge.',
-        managers: [{id: 'mgr001', name: 'Ms. Priya Sharma'}, {id: 'mgr002', name: 'Mr. Alok Nath (Asst.)'}],
-        kpis: { recentSalesTrend: 'up', customerCount: 1250, leadConversionRate: '30%'},
-        recentActivity: [
-            {id: 'act01', description: 'New diamond collection launched.', date: '2024-07-20', type: 'info'},
-            {id: 'act02', description: 'Security system upgrade scheduled.', date: '2024-07-15', type: 'alert'}
-        ]
-    },
-    // ... (add sr002, sr003, sr004 from previous list page if needed, with more details)
-     { 
-        id: 'sr002', 
-        name: 'Mumbai Bandra Boutique',
-        location: 'Mumbai, Maharashtra',
-        addressSnippet: '45 Linking Road, Bandra West',
-        fullAddress: { line1: '45 Linking Road', line2: 'Bandra West', city: 'Mumbai', state: 'Maharashtra', postalCode: '400050', country: 'India'},
-        mainContact: 'Mr. Anand Verma',
-        contactPhone: '+91 22 2600 1234',
-        contactEmail: 'mumbai.store@mangathriya.com',
-        salespeopleCount: 10,
-        ytdSales: '₹18,50,200',
-        status: 'Active',
-        openingDate: '2021-03-20',
-        notes: 'Focuses on contemporary designs and celebrity clientele.',
-        managers: [{id: 'mgr003', name: 'Mr. Anand Verma'}],
-        kpis: { recentSalesTrend: 'flat', customerCount: 850, leadConversionRate: '22%'},
-    },
-    {
-        id: 'sr004',
-        name: 'Bangalore Indiranagar',
-        location: 'Bangalore, Karnataka',
-        addressSnippet: '100 Feet Road, Indiranagar',
-        fullAddress: { line1: '7G, 100 Feet Rd', line2: 'HAL 2nd Stage, Indiranagar', city: 'Bengaluru', state: 'Karnataka', postalCode: '560038', country: 'India'},
-        mainContact: 'Mr. Rajeev Menon',
-        contactPhone: '+91 80 4567 8900',
-        contactEmail: 'blr.store@mangathriya.com',
-        salespeopleCount: 8,
-        ytdSales: '₹9,80,000',
-        status: 'Inactive',
-        openingDate: '2023-01-05',
-        notes: 'Currently inactive. Planned for reopening Q4 2024 after renovation.',
-        managers: [{id: 'mgr005', name: 'Mr. Rajeev Menon'}],
-        kpis: { recentSalesTrend: 'down', customerCount: 320, leadConversionRate: '15%'},
-        recentActivity: [
-            {id: 'act03', description: 'Renovation tender awarded.', date: '2024-06-10', type: 'info'},
-        ]
-    },
-];
-
-const fetchShowroomDetails = async (id: string): Promise<Showroom | null> => {
-    console.log(`Fetching details for showroom ID: ${id}`);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
-    const showroom = mockShowroomsList.find(sr => sr.id === id);
-    return showroom || null;
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
 };
 
 const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     try {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString; // Return original if invalid date
+        if (isNaN(date.getTime())) return dateString;
         return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch {
         return dateString;
     }
+};
+
+const getLocationDisplay = (showroom: DetailedShowroom) => {
+    const parts = [];
+    if (showroom.city) parts.push(showroom.city);
+    if (showroom.state) parts.push(showroom.state);
+    return parts.join(', ') || 'Location not specified';
+};
+
+const getFullAddress = (showroom: DetailedShowroom) => {
+    const parts = [];
+    if (showroom.location_address) parts.push(showroom.location_address);
+    if (showroom.city) parts.push(showroom.city);
+    if (showroom.state) parts.push(showroom.state);
+    if (showroom.zip_code) parts.push(showroom.zip_code);
+    return parts.join(', ') || 'Address not specified';
 };
 
 export default function ShowroomDetailPage() {
@@ -144,23 +65,27 @@ export default function ShowroomDetailPage() {
     const router = useRouter();
     const showroomId = params.showroomId as string;
     
-    const [showroom, setShowroom] = useState<Showroom | null>(null);
+    const [showroom, setShowroom] = useState<DetailedShowroom | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (showroomId) {
             setIsLoading(true);
-            fetchShowroomDetails(showroomId)
-                .then(data => {
-                    if (data) {
-                        setShowroom(data);
+            setError(null);
+            
+            getShowroomDetailForAdmin(showroomId)
+                .then(result => {
+                    if (result.error) {
+                        setError(result.error);
+                    } else if (result.showroom) {
+                        setShowroom(result.showroom);
                     } else {
                         setError('Showroom not found.');
                     }
                 })
                 .catch(err => {
-                    console.error(err);
+                    console.error('Error fetching showroom details:', err);
                     setError('Failed to load showroom details.');
                 })
                 .finally(() => {
@@ -170,7 +95,12 @@ export default function ShowroomDetailPage() {
     }, [showroomId]);
 
     if (isLoading) {
-        return <div className="flex items-center justify-center h-64"><Activity className="h-8 w-8 animate-spin mr-2" /> Loading showroom details...</div>;
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                Loading showroom details...
+            </div>
+        );
     }
 
     if (error) {
@@ -184,11 +114,8 @@ export default function ShowroomDetailPage() {
     }
 
     if (!showroom) {
-        // This case should ideally be covered by error state, but as a fallback:
         return <div className="text-center py-10">Showroom data is unavailable.</div>;
     }
-
-    const { name, fullAddress, contactPhone, contactEmail, status, openingDate, notes, mainContact, salespeopleCount, ytdSales, managers, kpis, recentActivity } = showroom;
 
     return (
         <div className="space-y-6">
@@ -201,7 +128,7 @@ export default function ShowroomDetailPage() {
                         </Link>
                     </div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center">
-                        <Store className="h-7 w-7 mr-3 text-primary" /> {name}
+                        <Store className="h-7 w-7 mr-3 text-primary" /> {showroom.name}
                     </h1>
                 </div>
                 <Link href={`/admin/showrooms/${showroomId}/edit`} passHref>
@@ -224,29 +151,25 @@ export default function ShowroomDetailPage() {
                                 <MapPin className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                 <div>
                                     <h4 className="font-semibold">Address</h4>
-                                    {fullAddress ? (
-                                        <p className="text-muted-foreground">
-                                            {fullAddress.line1}{fullAddress.line2 && `, ${fullAddress.line2}`}<br/>
-                                            {fullAddress.city}, {fullAddress.state} {fullAddress.postalCode}<br/>
-                                            {fullAddress.country}
-                                        </p>
-                                    ) : <p className="text-muted-foreground">{showroom.addressSnippet}</p>}
+                                    <p className="text-muted-foreground">
+                                        {getFullAddress(showroom)}
+                                    </p>
                                 </div>
                             </div>
                             <Separator />
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="flex items-start space-x-3">
                                     <Phone className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
                                         <h4 className="font-semibold">Contact Phone</h4>
-                                        <p className="text-muted-foreground">{contactPhone || 'N/A'}</p>
+                                        <p className="text-muted-foreground">{showroom.phone_number || 'N/A'}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-3">
                                     <Mail className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
                                         <h4 className="font-semibold">Contact Email</h4>
-                                        <p className="text-muted-foreground">{contactEmail || 'N/A'}</p>
+                                        <p className="text-muted-foreground">{showroom.email_address || 'N/A'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -255,119 +178,144 @@ export default function ShowroomDetailPage() {
                                 <div className="flex items-start space-x-3">
                                     <UserCheck className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
-                                        <h4 className="font-semibold">Primary Contact / Manager</h4>
-                                        <p className="text-muted-foreground">{mainContact || 'N/A'}</p>
+                                        <h4 className="font-semibold">Manager</h4>
+                                        <p className="text-muted-foreground">
+                                            {showroom.manager?.full_name || 'No Manager Assigned'}
+                                        </p>
+                                        {showroom.manager?.email && (
+                                            <p className="text-xs text-muted-foreground">{showroom.manager.email}</p>
+                                        )}
                                     </div>
                                 </div>
-                                 <div className="flex items-start space-x-3">
+                                <div className="flex items-start space-x-3">
                                     <UsersRound className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
                                         <h4 className="font-semibold">Sales Team Size</h4>
-                                        <p className="text-muted-foreground">{salespeopleCount} members</p>
+                                        <p className="text-muted-foreground">{showroom.salesperson_count} members</p>
                                     </div>
                                 </div>
                             </div>
-                           <Separator />
+                            <Separator />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="flex items-start space-x-3">
                                     <CalendarDays className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
-                                        <h4 className="font-semibold">Opening Date</h4>
-                                        <p className="text-muted-foreground">{formatDate(openingDate)}</p>
+                                        <h4 className="font-semibold">Date Established</h4>
+                                        <p className="text-muted-foreground">{formatDate(showroom.date_established || undefined)}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-3">
-                                    <Activity className="h-5 w-5 text-muted-foreground mt-1 shrink-0" /> {/* Changed Icon for status */}
+                                    <Activity className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
                                     <div>
                                         <h4 className="font-semibold">Status</h4>
-                                        <Badge variant={status === 'Active' ? 'default' : (status === 'Inactive' ? 'destructive' : 'secondary') }>{status}</Badge>
+                                        <Badge variant={showroom.status === 'active' ? 'default' : 'destructive'}>
+                                            {showroom.status.charAt(0).toUpperCase() + showroom.status.slice(1)}
+                                        </Badge>
                                     </div>
                                 </div>
                             </div>
-                            {notes && (<>
-                                <Separator />
-                                <div>
-                                    <h4 className="font-semibold mb-1">Notes</h4>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
-                                </div>
-                            </>)}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Assigned Manager(s)</CardTitle>
-                            {/* <Button variant="outline" size="sm" className="ml-auto">Manage Assignments</Button> */} 
+                            <CardTitle>Sales Team ({showroom.salespeople.length})</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {managers && managers.length > 0 ? (
-                                <ul className="space-y-2">
-                                    {managers.map(manager => (
-                                        <li key={manager.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                                            <span className="text-sm font-medium">{manager.name}</span>
-                                            <Link href={`/admin/managers/${manager.id}`} className="text-xs text-primary hover:underline">View Profile</Link>
-                                        </li>
+                            {showroom.salespeople && showroom.salespeople.length > 0 ? (
+                                <div className="space-y-2">
+                                    {showroom.salespeople.map((salesperson) => (
+                                        <div key={salesperson.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                                            <div>
+                                                <span className="text-sm font-medium">{salesperson.full_name || 'Unknown Name'}</span>
+                                                {salesperson.email && (
+                                                    <p className="text-xs text-muted-foreground">{salesperson.email}</p>
+                                                )}
+                                                {salesperson.employee_id && (
+                                                    <p className="text-xs text-muted-foreground">ID: {salesperson.employee_id}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant={salesperson.status === 'active' ? 'default' : 'secondary'}>
+                                                    {salesperson.status}
+                                                </Badge>
+                                                <Link 
+                                                    href={`/admin/salespeople/${salesperson.id}`} 
+                                                    className="text-xs text-primary hover:underline"
+                                                >
+                                                    View Profile
+                                                </Link>
+                                            </div>
+                                        </div>
                                     ))}
-                                </ul>
-                            ) : <p className="text-sm text-muted-foreground">No managers explicitly assigned to this showroom via this view.</p>}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No salespeople assigned to this showroom.</p>
+                            )}
                         </CardContent>
-                         <CardFooter className="border-t pt-4">
-                            <Button variant="outline" className="w-full" disabled> {/* Placeholder */}
-                                <Users className="mr-2 h-4 w-4"/> Manage Manager Assignments
-                            </Button>
+                        <CardFooter className="border-t pt-4">
+                            <Link href={`/admin/salespeople?showroom=${showroomId}`} className="w-full">
+                                <Button variant="outline" className="w-full">
+                                    <Users className="mr-2 h-4 w-4"/> Manage Sales Team
+                                </Button>
+                            </Link>
                         </CardFooter>
                     </Card>
                 </div>
 
-                {/* Right Column - KPIs and Activity */}
+                {/* Right Column - KPIs */}
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center"><LineChart className="h-5 w-5 mr-2 text-primary"/> Key Performance Indicators</CardTitle>
+                            <CardTitle className="flex items-center">
+                                <Activity className="h-5 w-5 mr-2 text-primary"/>
+                                Performance Summary
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <div className="flex justify-between items-center">
                                 <span className="text-sm text-muted-foreground">YTD Sales</span>
-                                <span className="font-semibold text-lg">{ytdSales}</span>
+                                <span className="font-semibold text-lg">
+                                    {showroom.ytd_sales > 0 ? formatCurrency(showroom.ytd_sales) : '₹0'}
+                                </span>
                             </div>
-                            {kpis && <>
-                                <Separator/>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Recent Sales Trend</span>
-                                    <Badge variant={kpis.recentSalesTrend === 'up' ? 'default' : (kpis.recentSalesTrend === 'down' ? 'destructive' : 'secondary')}>{kpis.recentSalesTrend}</Badge>
-                                </div>
-                                <Separator/>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Total Customers</span>
-                                    <span className="font-semibold">{kpis.customerCount}</span>
-                                </div>
-                                <Separator/>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Lead Conversion Rate</span>
-                                    <span className="font-semibold">{kpis.leadConversionRate}</span>
-                                </div>
-                            </>}
+                            <Separator/>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Active Salespeople</span>
+                                <span className="font-semibold">{showroom.salesperson_count}</span>
+                            </div>
+                            <Separator/>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Created</span>
+                                <span className="font-semibold text-sm">{formatDate(showroom.created_at)}</span>
+                            </div>
+                            <Separator/>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Last Updated</span>
+                                <span className="font-semibold text-sm">{formatDate(showroom.updated_at)}</span>
+                            </div>
                         </CardContent>
                         <CardFooter className="border-t pt-4">
-                            <Button variant="link" className="w-full p-0 h-auto text-primary" disabled>View Detailed Analytics</Button> {/* Placeholder */}
+                            <Button variant="link" className="w-full p-0 h-auto text-primary" disabled>
+                                View Detailed Analytics
+                            </Button>
                         </CardFooter>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Recent Activity & Alerts</CardTitle>
+                            <CardTitle>Operating Hours</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {recentActivity && recentActivity.length > 0 ? (
-                                <ul className="space-y-3">
-                                    {recentActivity.map(activity => (
-                                        <li key={activity.id} className={`p-2.5 rounded-md border-l-4 ${activity.type === 'alert' ? 'border-destructive bg-destructive/5' : 'border-primary bg-primary/5'}`}>
-                                            <p className={`text-sm font-medium ${activity.type === 'alert' ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>{activity.description}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{formatDate(activity.date)}</p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : <p className="text-sm text-muted-foreground">No recent activity recorded.</p>}
+                            {showroom.operating_hours ? (
+                                <div className="text-sm">
+                                    <pre className="text-muted-foreground whitespace-pre-wrap">
+                                        {JSON.stringify(showroom.operating_hours, null, 2)}
+                                    </pre>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Operating hours not specified.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

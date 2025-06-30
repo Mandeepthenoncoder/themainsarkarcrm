@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
-import { Edit3, CalendarPlus, ArrowLeft, AlertCircle, Info, UserCheck, Users, Home, Gift, ShoppingBag, Heart, MessageSquare, Edit, Eye, Briefcase, MapPin, Star, Clock, Phone, TrendingUp } from 'lucide-react'; // Added Phone, TrendingUp
+import { Edit3, CalendarPlus, ArrowLeft, AlertCircle, Info, UserCheck, Users, Home, Gift, ShoppingBag, Heart, MessageSquare, Edit, Eye, Briefcase, MapPin, Star, Clock, Phone, TrendingUp, DollarSign } from 'lucide-react'; // Added Phone, TrendingUp, DollarSign
 import { AddVisitLogDialog } from '@/components/customers/AddVisitLogDialog';
 import { AddCallLogDialog } from '@/components/customers/AddCallLogDialog'; // Added import
 import { EditableLeadStatus } from '@/components/customers/EditableLeadStatus'; // Added import
@@ -103,8 +103,9 @@ interface Customer {
   } | null;
   visit_logs: VisitLogEntry[] | null;
   call_logs: CallLogEntry[] | null;
-  interest_level: 'Hot' | 'Warm' | 'Cold' | 'Not Assessed' | null; // Added interest_level
+  interest_level: 'Hot' | 'Warm' | 'Cold' | 'None' | null; // Added interest_level
   monthly_saving_scheme_status?: 'Joined' | 'Interested' | 'Not Interested' | null;
+  purchase_amount: number | null; // Converted revenue when design is selected
 }
 
 // Re-using from customers/page.tsx - consider moving to a shared utils file
@@ -178,7 +179,8 @@ export default async function CustomerDetailPage({ params }: { params: { custome
       ),
       visit_logs, call_logs,
       interest_level,
-      monthly_saving_scheme_status
+      monthly_saving_scheme_status,
+      purchase_amount
     `)
     .eq('id', customerId)
     .single<Customer>();
@@ -259,8 +261,16 @@ export default async function CustomerDetailPage({ params }: { params: { custome
                 <div><dt className="text-xs font-medium text-muted-foreground">Email</dt><dd className="mt-0.5 text-sm text-foreground">{customer.email || 'N/A'}</dd></div>
                 <div><dt className="text-xs font-medium text-muted-foreground">Phone</dt><dd className="mt-0.5 text-sm text-foreground">{customer.phone_number || 'N/A'}</dd></div>
                 
-                {fullAddress && <div className="md:col-span-2"><dt className="text-xs font-medium text-muted-foreground flex items-center"><Home className="h-3 w-3 mr-1.5" />Address</dt><dd className="mt-0.5 text-sm text-foreground">{fullAddress}</dd></div>}
+                {fullAddress &&                 <div className="md:col-span-2"><dt className="text-xs font-medium text-muted-foreground flex items-center"><Home className="h-3 w-3 mr-1.5" />Address</dt><dd className="mt-0.5 text-sm text-foreground">{fullAddress}</dd></div>}
                 {customer.catchment_area && <div><dt className="text-xs font-medium text-muted-foreground flex items-center"><MapPin className="h-3 w-3 mr-1.5" />Catchment Area</dt><dd className="mt-0.5 text-sm text-foreground">{customer.catchment_area}</dd></div>}
+                
+                {customer.purchase_amount && customer.purchase_amount > 0 && (
+                  <div className="md:col-span-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <dt className="text-xs font-medium text-green-800 flex items-center"><DollarSign className="h-3 w-3 mr-1.5" />Converted Revenue</dt>
+                    <dd className="mt-0.5 text-lg font-semibold text-green-700">₹{customer.purchase_amount.toLocaleString('en-IN')}</dd>
+                    <p className="text-xs text-green-600 mt-1">Customer has made a purchase - counted as converted revenue</p>
+                  </div>
+                )}
 
                 {customer.community && <div><dt className="text-xs font-medium text-muted-foreground flex items-center"><Users className="h-3 w-3 mr-1.5" />Community</dt><dd className="mt-0.5 text-sm text-foreground">{customer.community}</dd></div>}
                 {customer.mother_tongue && <div><dt className="text-xs font-medium text-muted-foreground">Mother Tongue</dt><dd className="mt-0.5 text-sm text-foreground">{customer.mother_tongue}</dd></div>}

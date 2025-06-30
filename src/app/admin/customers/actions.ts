@@ -15,6 +15,7 @@ export interface CustomerForAdminView {
     lead_status: string | null;
     created_at: string;
     last_contacted_date: string | null;
+    purchase_amount: number | null;
 }
 
 export async function getCustomersForAdminView(
@@ -38,9 +39,8 @@ export async function getCustomersForAdminView(
                 address_city,
                 interest_categories_json,
                 assigned_showroom_id,
-                showrooms (id, name),
                 assigned_salesperson_id,
-                salesperson:profiles (id, full_name)
+                purchase_amount
             `);
 
         // Apply filters
@@ -66,27 +66,65 @@ export async function getCustomersForAdminView(
             }
         }
             
-        const { data, error } = await query;
+        const { data, error } = await query as any;
 
         if (error) {
             console.error("Error fetching customers for admin view:", error);
             return { customers: [], error: error.message };
         }
-        
-        const customers = data.map(c => ({
-            id: c.id,
-            full_name: c.full_name,
-            email: c.email,
-            phone_number: c.phone_number,
-            avatar_url: c.avatar_url,
-            lead_status: c.lead_status,
-            created_at: c.created_at,
-            last_contacted_date: c.last_contacted_date,
-            assigned_showroom: c.showrooms ? { id: c.assigned_showroom_id!, name: c.showrooms.name } : null,
-            salesperson: c.salesperson ? { id: c.assigned_salesperson_id!, full_name: c.salesperson.full_name } : null,
-        }));
 
-        return { customers: customers as CustomerForAdminView[], error: null };
+        if (!data || data.length === 0) {
+            return { customers: [], error: null };
+        }
+
+        // Now enrich each customer with their showroom and salesperson info
+        const enrichedCustomers = await Promise.all(
+            data.map(async (customer: any) => {
+                // Get showroom info if assigned
+                let assignedShowroom = null;
+                if (customer.assigned_showroom_id) {
+                    const { data: showroomData } = await supabase
+                        .from('showrooms')
+                        .select('id, name')
+                        .eq('id', customer.assigned_showroom_id)
+                        .single();
+                    
+                    if (showroomData) {
+                        assignedShowroom = showroomData;
+                    }
+                }
+
+                // Get salesperson info if assigned
+                let salesperson = null;
+                if (customer.assigned_salesperson_id) {
+                    const { data: salespersonData } = await supabase
+                        .from('profiles')
+                        .select('id, full_name')
+                        .eq('id', customer.assigned_salesperson_id)
+                        .single();
+                    
+                    if (salespersonData) {
+                        salesperson = salespersonData;
+                    }
+                }
+
+                return {
+                    id: customer.id,
+                    full_name: customer.full_name,
+                    email: customer.email,
+                    phone_number: customer.phone_number,
+                    avatar_url: customer.avatar_url,
+                    lead_status: customer.lead_status,
+                    created_at: customer.created_at,
+                    last_contacted_date: customer.last_contacted_date,
+                    purchase_amount: (customer as any).purchase_amount || null,
+                    assigned_showroom: assignedShowroom,
+                    salesperson: salesperson,
+                } as CustomerForAdminView;
+            })
+        );
+
+        return { customers: enrichedCustomers, error: null };
 
     } catch (e: any) {
         console.error('Unexpected error in getCustomersForAdminView:', e);

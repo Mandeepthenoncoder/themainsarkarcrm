@@ -37,6 +37,9 @@ interface DashboardKPIs {
     totalNewCustomersMTD: number; // Renamed for clarity
     totalActivePipelineValue: string;
     countOpenOpportunities: number;
+    totalConvertedRevenue: string; // New: converted revenue from purchase amounts
+    convertedCustomersCount: number; // New: number of customers who made purchases
+    conversionRate: string; // New: conversion rate percentage
 }
 
 interface WalkoutReason {
@@ -147,6 +150,7 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
             assigned_salesperson_id,
             created_at,
             lead_source,
+            purchase_amount,
             profiles (id, full_name)
         `);
 
@@ -222,6 +226,23 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
             }
         });
     }
+
+    // --- Calculate Converted Revenue Metrics ---
+    let totalConvertedRevenue = 0;
+    let convertedCustomersCount = 0;
+    
+    if (allCustomers) {
+        allCustomers.forEach(customer => {
+            if (customer.purchase_amount && customer.purchase_amount > 0) {
+                totalConvertedRevenue += customer.purchase_amount;
+                convertedCustomersCount++;
+            }
+        });
+    }
+
+    const conversionRate = allCustomers?.length 
+        ? ((convertedCustomersCount / allCustomers.length) * 100).toFixed(1) 
+        : '0.0';
     if (customersError) console.error("Error fetching customers:", customersError.message);
     if (salespeopleListError) console.error("Error fetching salespeople:", salespeopleListError.message);
 
@@ -429,6 +450,9 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
             totalNewCustomersMTD: allCustomers?.filter(c => new Date(c.created_at!) >= new Date(currentMonthStartDate)).length || 0,
             totalActivePipelineValue: `₹${totalActivePipelineValue.toLocaleString('en-IN')}`,
             countOpenOpportunities: countOpenOpportunities,
+            totalConvertedRevenue: `₹${totalConvertedRevenue.toLocaleString('en-IN')}`,
+            convertedCustomersCount: convertedCustomersCount,
+            conversionRate: conversionRate,
         },
         alerts,
         topShowrooms: topShowroomsData,
@@ -459,7 +483,19 @@ export default async function AdminDashboardPage() {
             </header>
 
             {/* KPI Cards Section */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
+                {/* Featured Converted Revenue Card */}
+                <Card className="xl:col-span-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-lg transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-green-800">💰 Total Converted Revenue</CardTitle>
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold text-green-700">{adminDashboardData.kpis.totalConvertedRevenue}</div>
+                        <p className="text-xs text-green-600">{adminDashboardData.kpis.convertedCustomersCount} customers • {adminDashboardData.kpis.conversionRate}% conversion rate</p>
+                    </CardContent>
+                </Card>
+
                 <Card className="hover:shadow-lg transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Active Showrooms</CardTitle>

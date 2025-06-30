@@ -142,7 +142,7 @@ export default function EditComprehensiveCustomerPage() {
             reason_for_visit: customerData.reason_for_visit || '',
             lead_source: customerData.lead_source || '',
             age_of_end_user: customerData.age_of_end_user || '',
-            interest_level: customerData.interest_level || 'Not Assessed',
+            interest_level: customerData.interest_level || 'None',
             interest_categories: (customerData.interest_categories_json || []).map((i: any) => ({
               id: i.id || cuid(), // Ensure ID exists for key prop
               category_type: i.category_type,
@@ -157,6 +157,7 @@ export default function EditComprehensiveCustomerPage() {
             summary_notes: customerData.notes || '',
             assigned_salesperson_id: customerData.assigned_salesperson_id || '',
             monthly_saving_scheme_status: customerData.monthly_saving_scheme_status,
+            purchase_amount: customerData.purchase_amount || undefined,
           });
         }
       }
@@ -392,12 +393,12 @@ export default function EditComprehensiveCustomerPage() {
                         <Label htmlFor="interest_level">Initial Interest Level</Label>
                         <Select 
                             name="interest_level" 
-                            value={formData.interest_level || 'Not Assessed'} 
-                            onValueChange={(val) => handleSelectChange('interest_level', val as 'Hot' | 'Warm' | 'Cold' | 'Not Assessed')}
+                            value={formData.interest_level || 'None'} 
+                            onValueChange={(val) => handleSelectChange('interest_level', val as 'Hot' | 'Warm' | 'Cold' | 'None')}
                         >
                             <SelectTrigger><SelectValue placeholder="Select interest level" /></SelectTrigger>
                             <SelectContent>
-                                {['Not Assessed', 'Cold', 'Warm', 'Hot'].map(level => (
+                                {['None', 'Cold', 'Warm', 'Hot'].map(level => (
                                     <SelectItem key={level} value={level}>{level}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -417,6 +418,20 @@ export default function EditComprehensiveCustomerPage() {
                                 {monthlySavingSchemeOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="purchase_amount">Purchase Amount (₹)</Label>
+                        <Input 
+                            id="purchase_amount" 
+                            name="purchase_amount" 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            value={formData.purchase_amount || ''} 
+                            onChange={handleChange} 
+                            placeholder="e.g., 75000.00"
+                        />
+                        <p className="text-xs text-muted-foreground">Converted revenue if customer made a purchase</p>
                     </div>
                 </div>
             </section>

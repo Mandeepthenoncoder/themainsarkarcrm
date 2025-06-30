@@ -11,8 +11,12 @@ import { getManagerEscalatedItemsAction } from '../escalations/actions';
 // --- Types for data fetched directly by this action --- //
 type DashboardProfile = Database['public']['Tables']['profiles']['Row'];
 
-// Type for customer with interest categories
-type CustomerWithInterest = Pick<Database['public']['Tables']['customers']['Row'], 'id' | 'interest_categories_json'>;
+// Type for customer with interest categories (extended to include purchase_amount)
+interface CustomerWithInterest {
+  id: string;
+  interest_categories_json: any;
+  purchase_amount?: number | null;
+}
 
 // Type for the structure within interest_categories_json
 interface InterestCategoryProduct {
@@ -30,6 +34,9 @@ export interface EnhancedManagerDashboardData {
   totalPendingTeamFollowUps: number;
   newCustomersLast30Days: number;
   totalTeamRevenueOpportunity: number;
+  totalTeamConvertedRevenue: number; // New: total converted revenue from team
+  teamConvertedCustomersCount: number; // New: number of converted customers in team
+  teamConversionRate: string; // New: team conversion rate
   recentAnnouncements: DisplayTeamMessage[]; 
   activeGoals: TeamGoal[];
   openEscalationsCount: number;
@@ -97,6 +104,8 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
     let totalPendingTeamFollowUps = 0;
     let newCustomersLast30Days = 0;
     let totalTeamRevenueOpportunity = 0;
+    let totalTeamConvertedRevenue = 0;
+    let teamConvertedCustomersCount = 0;
 
     if (teamMemberIds.length > 0) {
       const today = new Date().toISOString();
@@ -105,12 +114,13 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
 
       const { data: teamCustomersData } = await supabase
         .from('customers')
-        .select('id, interest_categories_json')
+        .select('id, interest_categories_json, purchase_amount')
         .in('assigned_salesperson_id', teamMemberIds)
         .returns<CustomerWithInterest[]>();
 
       if (teamCustomersData) {
         teamCustomersData.forEach(customer => {
+          // Calculate pipeline value from interest categories
           if (customer.interest_categories_json && Array.isArray(customer.interest_categories_json)) {
             const categories = customer.interest_categories_json as InterestCategory[];
             categories.forEach(category => {
@@ -122,6 +132,12 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
                 });
               }
             });
+          }
+
+          // Calculate converted revenue
+          if (customer.purchase_amount && customer.purchase_amount > 0) {
+            totalTeamConvertedRevenue += customer.purchase_amount;
+            teamConvertedCustomersCount++;
           }
         });
       }
@@ -138,6 +154,11 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
       totalPendingTeamFollowUps = followUpCountRes.count || 0;
       newCustomersLast30Days = newCustomerCountRes.count || 0;
     }
+
+    // Calculate team conversion rate
+    const teamConversionRate = totalTeamCustomers > 0 
+      ? ((teamConvertedCustomersCount / totalTeamCustomers) * 100).toFixed(1) 
+      : '0.0';
 
     const announcementsResult = await getTeamMessagesAction();
     const recentAnnouncements = announcementsResult.success ? announcementsResult.messages.slice(0, 2) : [];
@@ -163,6 +184,9 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
         totalPendingTeamFollowUps,
         newCustomersLast30Days,
         totalTeamRevenueOpportunity,
+        totalTeamConvertedRevenue,
+        teamConvertedCustomersCount,
+        teamConversionRate,
         recentAnnouncements,
         activeGoals,
         openEscalationsCount,
