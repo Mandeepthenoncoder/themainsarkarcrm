@@ -156,6 +156,7 @@ export async function searchCustomersAction(query: string): Promise<{ success: b
     .from('customers')
     .select('id, full_name, phone_number, email')
     .eq('assigned_showroom_id', profile.assigned_showroom_id) // Filter by salesperson's showroom
+    .is('deleted_at', null) // Exclude soft-deleted customers
     .or(`full_name.ilike.${searchString},phone_number.ilike.${searchString},email.ilike.${searchString}`)
     .limit(10);
 
@@ -191,7 +192,7 @@ interface CallLogEntry extends LogEntry {
 export interface InterestCategoryItemProduct {
   id: string; // FE unique key, made required
   product_name: string;
-  price_range: string;
+  revenue_opportunity: number | null; // Actual revenue amount in Indian Rupees
   // Diamond specific (optional, based on your form structure)
   diamond_color_stone?: boolean;
   diamond_fancy?: boolean;

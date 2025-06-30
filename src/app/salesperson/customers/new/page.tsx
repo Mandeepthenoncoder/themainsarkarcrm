@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, PlusCircle, Trash2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Salesperson {
   id: string;
@@ -32,7 +33,7 @@ const reasonsForVisit = [ "Wedding", "Self-purchase", "Gifting", "Browse", "Repa
 const leadSources = [ "Social Media (Instagram/Facebook)", "Google Search", "Newspaper / Magazine Ad", "Radio Ad", "Referral (Friend or Family)", "Walk-in / Signage", "Other" ];
 const ageOfEndUserOptions = [ "Under 18", "18-25", "26-35", "36-45", "46-55", "56-65", "65+", "All/Family" ];
 const mainInterestCategories = ["Diamond", "Gold", "Polki"];
-const priceRanges = ["0-25K", "25K-50K", "50K-75K", "75K-1L", "1L-2L", "2L-3L", "3L-5L", "5L-10L", "10L-20L", "20L-50L", "50L-1CR", ">1CR"];
+// Removed price ranges - using actual revenue opportunity amounts instead
 const monthlySavingSchemeOptions = ["Joined", "Interested", "Not Interested"];
 
 const diamondProducts = ["Diamond Rings", "Diamond Earrings", "Diamond Pendant Set", "Diamond Bracelet", "Diamond Pendant", "Diamond Set"];
@@ -89,10 +90,10 @@ const initialInterestCategoryItem: InterestCategoryItem = {
   customer_preference_others: '',
 };
 
-// Re-adding a minimal initialProductDetail to resolve reference errors
+// Updated product detail structure for revenue opportunity tracking
 const initialProductDetail = {
   product_name: undefined as string | undefined,
-  price_range: undefined as string | undefined,
+  revenue_opportunity: null as number | null,
   // Add other optional fields with default empty/null values if needed by addProductToInterestCategory
   gold_internal_categories: [],
   polki_categories: [],
@@ -122,7 +123,7 @@ const initialFormData: NewComprehensiveCustomerData = {
   customer_preference_checking_other_jewellers: false,
   customer_preference_felt_less_variety: false,
   customer_preference_others: '',
-  purchase_amount: undefined,
+  purchase_amount: null,
   follow_up_date: '',
   summary_notes: '',
   assigned_salesperson_id: '',
@@ -137,6 +138,7 @@ export default function AddComprehensiveCustomerPage() {
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [formData, setFormData] = useState<NewComprehensiveCustomerData>(initialFormData);
   const supabase = createClientComponentClient();
+  const { profile } = useAuth();
 
   useEffect(() => {
     const fetchSalespersons = async () => {
@@ -154,6 +156,16 @@ export default function AddComprehensiveCustomerPage() {
 
     fetchSalespersons();
   }, [supabase]);
+
+  // Auto-select the current logged-in salesperson
+  useEffect(() => {
+    if (profile && profile.role === 'salesperson' && profile.id) {
+      setFormData(prev => ({
+        ...prev,
+        assigned_salesperson_id: profile.id
+      }));
+    }
+  }, [profile]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -253,8 +265,8 @@ export default function AddComprehensiveCustomerPage() {
         return;
     }
     formData.interest_categories.forEach((ic: InterestCategoryItem, index: number) => {
-        if(ic.products.some((p: InterestCategoryItemProduct) => !p.product_name || !p.price_range)){
-            setError(`For Interest Category ${index+1}, all products must have a name and price range.`);
+        if(ic.products.some((p: InterestCategoryItemProduct) => !p.product_name || !p.revenue_opportunity)){
+            setError(`For Interest Category ${index+1}, all products must have a name and revenue opportunity amount.`);
             return;
         }
     });
@@ -293,7 +305,9 @@ export default function AddComprehensiveCustomerPage() {
       <Card>
         <CardHeader>
           <CardTitle>Add New Customer / Visit Log</CardTitle>
-          <CardDescription>Enter details for the new customer and their visit.</CardDescription>
+          <CardDescription>
+            Enter customer details, track revenue opportunities, and convert leads to sales.
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-8">
@@ -315,13 +329,34 @@ export default function AddComprehensiveCustomerPage() {
               <h3 className="text-lg font-semibold border-b pb-2">Customer Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="assigned_salesperson_id">Salesperson *</Label>
-                  <Select name="assigned_salesperson_id" value={formData.assigned_salesperson_id} onValueChange={(val) => handleSelectChange('assigned_salesperson_id', val)} required>
-                    <SelectTrigger><SelectValue placeholder="Select Salesperson" /></SelectTrigger>
+                  <Label htmlFor="assigned_salesperson_id">Assigned Salesperson *</Label>
+                  <Select 
+                    name="assigned_salesperson_id" 
+                    value={formData.assigned_salesperson_id} 
+                    onValueChange={(val) => handleSelectChange('assigned_salesperson_id', val)} 
+                    required
+                    disabled={profile?.role === 'salesperson'}
+                  >
+                    <SelectTrigger className={profile?.role === 'salesperson' ? "bg-green-50 border-green-200 cursor-not-allowed" : ""}>
+                      <SelectValue placeholder="Select Salesperson" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {salespersons.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}
+                      {profile?.role === 'salesperson' ? (
+                        // Only show current salesperson if logged in as salesperson
+                        salespersons
+                          .filter(s => s.id === profile.id)
+                          .map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)
+                      ) : (
+                        // Show all salespeople for managers/admins
+                        salespersons.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)
+                      )}
                     </SelectContent>
                   </Select>
+                  {profile && profile.role === 'salesperson' && (
+                    <p className="text-xs text-green-600 font-medium">
+                      🔒 Locked: Customers are automatically assigned to you
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="full_name">Full Name *</Label>
@@ -501,16 +536,20 @@ export default function AddComprehensiveCustomerPage() {
                                                 </Select>
                                             </div>
                                             <div className="space-y-1">
-                                                <Label htmlFor={`price_range_${interestItem.id}_${productIdx}`}>Price Range *</Label>
-                                                <Select 
-                                                    value={product.price_range || ''}
-                                                    onValueChange={(val) => handleProductDetailChange(interestItem.id, productIdx, 'price_range', val)}
-                                                >
-                                                    <SelectTrigger><SelectValue placeholder="Select Price Range" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {priceRanges.map(pr => <SelectItem key={pr} value={pr}>{pr}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
+                                                <Label htmlFor={`revenue_opportunity_${interestItem.id}_${productIdx}`}>Revenue Opportunity (₹) *</Label>
+                                                <Input 
+                                                    id={`revenue_opportunity_${interestItem.id}_${productIdx}`}
+                                                    type="number" 
+                                                    min="0" 
+                                                    step="100"
+                                                    value={product.revenue_opportunity || ''} 
+                                                    onChange={(e) => handleProductDetailChange(interestItem.id, productIdx, 'revenue_opportunity', e.target.value ? parseFloat(e.target.value) : null)}
+                                                    placeholder="e.g., 50000"
+                                                    className="border-blue-200 focus:border-blue-500"
+                                                />
+                                                <p className="text-xs text-blue-600">
+                                                    Estimated revenue opportunity for this product
+                                                </p>
                                             </div>
                                         </div>
                                         {/* Conditional Internal Categories based on Product Name */}
@@ -578,20 +617,10 @@ export default function AddComprehensiveCustomerPage() {
                                 </div>
                                 {interestItem.customer_preference_design_selected && (
                                     <div className="space-y-1 ml-6 p-3 bg-green-50 border border-green-200 rounded-md">
-                                        <Label htmlFor={`purchase_amount_${interestItem.id}`} className="text-green-800 font-medium">Purchase Amount (₹) *</Label>
-                                        <Input 
-                                            id={`purchase_amount_${interestItem.id}`} 
-                                            name="purchase_amount" 
-                                            type="number" 
-                                            min="0" 
-                                            step="0.01"
-                                            value={formData.purchase_amount || ''} 
-                                            onChange={handleChange} 
-                                            placeholder="e.g., 75000.00" 
-                                            className="border-green-300 focus:border-green-500 focus:ring-green-500"
-                                            required={interestItem.customer_preference_design_selected}
-                                        />
-                                        <p className="text-xs text-green-700">This amount will be counted as converted revenue.</p>
+                                        <p className="text-sm text-green-800 font-medium">✅ Design Selected</p>
+                                        <p className="text-xs text-green-700">
+                                            This customer has selected a design. Enter the purchase amount in the summary section below.
+                                        </p>
                                     </div>
                                 )}
                                 <div className="flex items-center space-x-2">
@@ -619,6 +648,53 @@ export default function AddComprehensiveCustomerPage() {
             {/* Section 6: Follow-up & Summary */}
             <section className="space-y-4 p-4 border rounded-md">
                 <h3 className="text-lg font-semibold border-b pb-2">Follow-up & Summary</h3>
+                
+                {/* Total Revenue Opportunity */}
+                {(() => {
+                    const totalOpportunity = formData.interest_categories.reduce((total, ic) => {
+                        return total + ic.products.reduce((productTotal, product) => {
+                            return productTotal + (product.revenue_opportunity || 0);
+                        }, 0);
+                    }, 0);
+                    
+                    if (totalOpportunity > 0) {
+                        return (
+                            <div className="space-y-1 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                                <Label className="text-blue-800 font-medium">Total Revenue Opportunity</Label>
+                                <p className="text-2xl font-bold text-blue-900">
+                                    ₹{totalOpportunity.toLocaleString('en-IN')}
+                                </p>
+                                <p className="text-xs text-blue-700">
+                                    Combined revenue opportunity from all products this customer is interested in
+                                </p>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
+                
+                {/* Purchase Amount - Only show if any design is selected */}
+                {formData.interest_categories.some((ic: InterestCategoryItem) => ic.customer_preference_design_selected) && (
+                    <div className="space-y-1 p-4 bg-green-50 border border-green-200 rounded-md">
+                        <Label htmlFor="purchase_amount" className="text-green-800 font-medium">Actual Purchase Amount (₹) *</Label>
+                        <Input 
+                            id="purchase_amount" 
+                            name="purchase_amount" 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            value={formData.purchase_amount || ''} 
+                            onChange={handleChange} 
+                            placeholder="e.g., 75000.00" 
+                            className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                            required={formData.interest_categories.some((ic: InterestCategoryItem) => ic.customer_preference_design_selected)}
+                        />
+                        <p className="text-xs text-green-700">
+                            🎉 <strong>CONVERTED SALE!</strong> Enter the actual purchase amount. This will be counted as realized revenue.
+                        </p>
+                    </div>
+                )}
+                
                 <div className="space-y-1 md:w-1/2 pr-2">
                     <Label htmlFor="follow_up_date">Next Follow-up Date</Label>
                     <Input id="follow_up_date" name="follow_up_date" type="date" value={formData.follow_up_date || ''} onChange={handleChange} />

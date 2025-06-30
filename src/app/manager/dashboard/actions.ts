@@ -116,6 +116,7 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
         .from('customers')
         .select('id, interest_categories_json, purchase_amount')
         .in('assigned_salesperson_id', teamMemberIds)
+        .is('deleted_at', null)
         .returns<CustomerWithInterest[]>();
 
       if (teamCustomersData) {
@@ -143,10 +144,10 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
       }
 
       const [customerCountRes, apptCountRes, followUpCountRes, newCustomerCountRes] = await Promise.all([
-        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds),
+        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds).is('deleted_at', null),
         supabase.from('appointments').select('id', { count: 'exact', head: true }).in('salesperson_id', teamMemberIds).gte('appointment_datetime', today),
-        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds).not('follow_up_date', 'is', null).gte('follow_up_date', today.split('T')[0]),
-        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds).gte('created_at', thirtyDaysAgo.toISOString()),
+        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds).not('follow_up_date', 'is', null).gte('follow_up_date', today.split('T')[0]).is('deleted_at', null),
+        supabase.from('customers').select('id', { count: 'exact', head: true }).in('assigned_salesperson_id', teamMemberIds).gte('created_at', thirtyDaysAgo.toISOString()).is('deleted_at', null),
       ]);
 
       totalTeamCustomers = customerCountRes.count || 0;

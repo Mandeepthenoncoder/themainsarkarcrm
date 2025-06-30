@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users2, Filter } from 'lucide-react';
+import { Users2, Filter, Trash2, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getCustomersForAdminView, CustomerForAdminView } from './actions';
 import { CustomerFilters } from '@/components/customers/CustomerFilters';
+import { DeleteCustomerButton } from '@/components/customers/DeleteCustomerButton';
 
 const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -46,11 +47,25 @@ export default async function AdminAllCustomersPage({
     return (
         <div className="space-y-6">
             <header className="bg-card shadow-sm rounded-lg p-6">
-                 <div className="flex items-center gap-3">
-                    <Users2 className="h-8 w-8 text-primary" />
-                    <div>
-                        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">All Customers Database</h1>
-                        <p className="text-muted-foreground mt-1">View and manage customer records across all showrooms.</p>
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Users2 className="h-8 w-8 text-primary" />
+                        <div>
+                            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">All Customers Database</h1>
+                            <p className="text-muted-foreground mt-1">View, manage, and delete customer records across all showrooms.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                        <Button variant="outline" asChild>
+                            <Link href="/admin/customers/trash">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                View Trash
+                            </Link>
+                        </Button>
+                        <div className="text-right">
+                            <p className="text-sm text-muted-foreground">Admin Controls</p>
+                            <p className="text-xs text-muted-foreground">Full customer management access</p>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -83,6 +98,7 @@ export default async function AdminAllCustomersPage({
                                     <TableHead>Purchase Amount</TableHead>
                                     <TableHead>Date Added</TableHead>
                                     <TableHead>Last Contacted</TableHead>
+                                    <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -135,10 +151,18 @@ export default async function AdminAllCustomersPage({
                                         </TableCell>
                                         <TableCell className="text-xs">{formatDate(customer.created_at)}</TableCell>
                                         <TableCell className="text-xs">{formatDate(customer.last_contacted_date || undefined)}</TableCell>
+                                        <TableCell className="text-center">
+                                            <DeleteCustomerButton
+                                                customerId={customer.id}
+                                                customerName={customer.full_name || 'Unknown'}
+                                                customerEmail={customer.email}
+                                                size="icon"
+                                            />
+                                        </TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                        <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                                             No customers found.
                                         </TableCell>
                                     </TableRow>

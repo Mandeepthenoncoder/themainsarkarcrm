@@ -2,6 +2,7 @@
 
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { Database } from '@/lib/database.types';
 
 export interface CustomerForAdminView {
@@ -41,7 +42,8 @@ export async function getCustomersForAdminView(
                 assigned_showroom_id,
                 assigned_salesperson_id,
                 purchase_amount
-            `);
+            `)
+            .is('deleted_at', null); // Only show non-deleted customers
 
         // Apply filters
         if (filters) {
@@ -129,5 +131,76 @@ export async function getCustomersForAdminView(
     } catch (e: any) {
         console.error('Unexpected error in getCustomersForAdminView:', e);
         return { customers: [], error: "An unexpected server error occurred." };
+    }
+}
+
+export interface DeleteCustomerResult {
+    success: boolean;
+    error?: string;
+}
+
+export async function deleteCustomerAction(customerId: string): Promise<DeleteCustomerResult> {
+    const supabase = createServerActionClient<Database>({ cookies });
+
+    try {
+        // Verify user is admin
+        const { data: { user }, error: sessionError } = await supabase.auth.getUser();
+        
+        if (sessionError || !user) {
+            return { success: false, error: "User not authenticated." };
+        }
+
+        // Get user profile to verify admin role
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !profile) {
+            return { success: false, error: "Could not verify user permissions." };
+        }
+
+        if (profile.role !== 'admin') {
+            return { success: false, error: "Only administrators can delete customers." };
+        }
+
+        // First, get customer details for logging
+        const { data: customer, error: fetchError } = await supabase
+            .from('customers')
+            .select('full_name, email')
+            .eq('id', customerId)
+            .single();
+
+        if (fetchError) {
+            return { success: false, error: "Customer not found." };
+        }
+
+        // Soft delete the customer (move to trash)
+        const { error: deleteError } = await supabase
+            .from('customers')
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: user.id
+            } as any)
+            .eq('id', customerId);
+
+        if (deleteError) {
+            console.error('Error soft deleting customer:', deleteError);
+            return { success: false, error: "Failed to delete customer. Please try again." };
+        }
+
+        console.log(`Admin ${user.email} moved customer to trash: ${customer.full_name} (${customer.email})`);
+
+        // Revalidate relevant paths
+        revalidatePath('/admin/customers');
+        revalidatePath('/admin/dashboard');
+        revalidatePath('/admin/customers/trash');
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('Unexpected error in deleteCustomerAction:', error);
+        return { success: false, error: "An unexpected error occurred while deleting the customer." };
     }
 } 

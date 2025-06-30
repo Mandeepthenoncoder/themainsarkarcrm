@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
-import { Gem } from 'lucide-react'; // Icon for branding
+import { Gem, User } from 'lucide-react'; // Icon for branding
+import Link from 'next/link';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -79,13 +80,25 @@ function LoginForm() {
               <Gem className="h-16 w-16 text-blue-600" /> 
               {/* Replace Gem with your actual logo component or img tag if you have one */}
             </div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-4">Jewelry CRM</h1>
+            <h1 className="text-4xl font-bold text-slate-800 mb-4">Sarkar Jewellers</h1>
+            <h2 className="text-2xl font-semibold text-slate-700 mb-4">Admin & Manager Portal</h2>
             <p className="text-slate-600 text-lg leading-relaxed">
-              Welcome back! Access your dedicated portal to manage customers, appointments, and drive sales.
+              Welcome back! Access your administrative dashboard to manage operations, teams, and business analytics.
             </p>
             <p className="mt-4 text-sm text-slate-500">
-              Secure & Reliable Access for Authorized Personnel.
+              Secure & Reliable Access for Management Personnel.
             </p>
+            
+            {/* Sales Team Link */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-slate-600 mb-2">Sales Team Member?</p>
+              <Link href="/sales-login">
+                <Button variant="outline" className="w-full">
+                  <User className="h-4 w-4 mr-2" />
+                  Quick Sales Login
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Form Side */}

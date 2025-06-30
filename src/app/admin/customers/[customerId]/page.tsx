@@ -15,6 +15,7 @@ import { AddVisitLogDialog } from '@/components/customers/AddVisitLogDialog';
 import { AddCallLogDialog } from '@/components/customers/AddCallLogDialog';
 import { EditableLeadStatus } from '@/components/customers/EditableLeadStatus';
 import { EditableInterestLevel } from '@/components/customers/EditableInterestLevel';
+import { DeleteCustomerButton } from '@/components/customers/DeleteCustomerButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -78,9 +79,19 @@ export default function AdminCustomerDetailPage() {
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">Customer ID: {customer.id}</p>
                 </div>
-                <Button variant="outline" asChild>
-                    <Link href="/admin/customers"><ArrowLeft className="h-4 w-4 mr-2"/> Back to Customer List</Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/admin/customers"><ArrowLeft className="h-4 w-4 mr-2"/> Back to Customer List</Link>
+                    </Button>
+                    <DeleteCustomerButton
+                        customerId={customer.id}
+                        customerName={customer.full_name || 'Unknown'}
+                        customerEmail={customer.email}
+                        showText={true}
+                        size="default"
+                        redirectAfterDelete={true}
+                    />
+                </div>
                 </div>
             </header>
 
