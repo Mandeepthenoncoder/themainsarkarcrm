@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
 import { Gem } from 'lucide-react'; // Icon for branding
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -158,5 +158,22 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-100">
+      <Gem className="h-12 w-12 text-blue-600 animate-spin" />
+      <p className="ml-4 text-lg">Loading...</p>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginForm />
+    </Suspense>
   );
 } 
