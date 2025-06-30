@@ -1,0 +1,9 @@
+node_modules
+.next
+.vercel
+dist
+build
+*.d.ts
+src/lib/database.types.ts
+src/lib/types/
+*.generated.ts 
