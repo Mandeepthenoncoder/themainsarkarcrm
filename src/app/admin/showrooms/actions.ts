@@ -86,7 +86,8 @@ export async function getShowroomsForAdminView(): Promise<{
                 // Get YTD sales for this showroom
                 const { data: salesData, error: salesError } = await supabase
                     .from('sales_transactions')
-                    .select('total_amount')
+                    .select('total_amount, customers!inner(id, deleted_at)')
+                    .is('customers.deleted_at', null)
                     .eq('showroom_id', showroom.id)
                     .gte('transaction_date', new Date(new Date().getFullYear(), 0, 1).toISOString());
 
@@ -163,7 +164,8 @@ export async function getShowroomDetailForAdmin(showroomId: string): Promise<{
 
         const { data: salesData } = await supabase
             .from('sales_transactions')
-            .select('total_amount')
+            .select('total_amount, customers!inner(id, deleted_at)')
+            .is('customers.deleted_at', null)
             .eq('showroom_id', showroomId)
             .gte('transaction_date', new Date(new Date().getFullYear(), 0, 1).toISOString());
 

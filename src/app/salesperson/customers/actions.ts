@@ -267,6 +267,19 @@ export async function createComprehensiveCustomerAction(
     return { success: false, error: "Could not retrieve user profile or showroom." };
   }
 
+  // Validate that assigned_salesperson_id is not empty
+  if (!data.assigned_salesperson_id || data.assigned_salesperson_id.trim() === '') {
+    console.error("Assigned salesperson ID is empty:", data.assigned_salesperson_id);
+    return { success: false, error: "Salesperson assignment is required. Please select a salesperson." };
+  }
+
+  // Verify the salesperson ID is a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(data.assigned_salesperson_id)) {
+    console.error("Invalid salesperson ID format:", data.assigned_salesperson_id);
+    return { success: false, error: "Invalid salesperson ID format. Please refresh the page and try again." };
+  }
+
   const customerToInsert = {
     full_name: data.full_name,
     phone_number: data.phone_number,

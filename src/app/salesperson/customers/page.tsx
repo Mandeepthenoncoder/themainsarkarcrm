@@ -68,6 +68,8 @@ export default async function MyCustomersPage() {
     const { data, error } = await supabase
       .from('customers')
       .select('id, full_name, email, phone_number, lead_status')
+      .eq('assigned_salesperson_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) {

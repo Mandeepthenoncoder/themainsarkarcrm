@@ -126,8 +126,11 @@ export async function getEnhancedManagerDashboardDataAction(): Promise<GetEnhanc
             const categories = customer.interest_categories_json as InterestCategory[];
             categories.forEach(category => {
               if (category.products && Array.isArray(category.products)) {
-                category.products.forEach(product => {
-                  if (product.price_range) {
+                category.products.forEach((product: any) => {
+                  // Use revenue_opportunity if available, fallback to price_range for old data
+                  if (product.revenue_opportunity) {
+                    totalTeamRevenueOpportunity += product.revenue_opportunity;
+                  } else if (product.price_range) {
                     totalTeamRevenueOpportunity += parsePriceRange(product.price_range);
                   }
                 });

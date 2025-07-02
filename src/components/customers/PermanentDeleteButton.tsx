@@ -12,10 +12,9 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { Trash2, AlertTriangle } from 'lucide-react';
-import { permanentDeleteCustomerAction, PermanentDeleteResult } from '@/app/admin/customers/trash/actions';
+import { permanentDeleteCustomerAction, PermanentDeleteResult } from '@/app/admin/customers/trash/server-actions';
 
 interface PermanentDeleteButtonProps {
   customerId: string;
@@ -33,17 +32,8 @@ export function PermanentDeleteButton({
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [confirmText, setConfirmText] = useState('');
-
-  const expectedConfirmText = `DELETE ${customerName}`;
-  const isConfirmValid = confirmText === expectedConfirmText;
 
   const handleDelete = () => {
-    if (!isConfirmValid) {
-      setError("Please type the exact confirmation text");
-      return;
-    }
-
     setError(null);
     
     startTransition(async () => {
@@ -52,8 +42,7 @@ export function PermanentDeleteButton({
         
         if (result.success) {
           setIsOpen(false);
-          setConfirmText('');
-          // The page will automatically refresh due to revalidatePath in the action
+          // Stay on the same page - it will refresh due to revalidatePath in the action
         } else {
           setError(result.error || "Failed to permanently delete customer");
         }
@@ -68,7 +57,6 @@ export function PermanentDeleteButton({
     <Dialog open={isOpen} onOpenChange={(open) => {
       setIsOpen(open);
       if (!open) {
-        setConfirmText('');
         setError(null);
       }
     }}>
@@ -124,22 +112,6 @@ export function PermanentDeleteButton({
               </ul>
             </AlertDescription>
           </Alert>
-
-          <div className="mt-4 space-y-2">
-            <Label htmlFor="confirm-text" className="text-sm font-medium">
-              Type <code className="bg-muted px-1 py-0.5 rounded font-mono text-xs">{expectedConfirmText}</code> to confirm:
-            </Label>
-            <Input
-              id="confirm-text"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={expectedConfirmText}
-              className={confirmText && !isConfirmValid ? "border-destructive" : ""}
-            />
-            {confirmText && !isConfirmValid && (
-              <p className="text-xs text-destructive">Text doesn't match. Please type exactly: {expectedConfirmText}</p>
-            )}
-          </div>
           
           {error && (
             <Alert className="mt-4" variant="destructive">
@@ -159,7 +131,7 @@ export function PermanentDeleteButton({
           <Button 
             variant="destructive"
             onClick={handleDelete}
-            disabled={isPending || !isConfirmValid}
+            disabled={isPending}
           >
             {isPending ? (
               <>

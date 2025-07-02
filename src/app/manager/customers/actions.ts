@@ -53,6 +53,7 @@ export async function getManagedCustomersAction(): Promise<GetManagedCustomersRe
       profiles ( full_name, avatar_url )
     `)
     .in('assigned_salesperson_id', salespersonIds)
+    .is('deleted_at', null)
     .order('last_contacted_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
 

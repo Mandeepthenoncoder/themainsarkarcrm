@@ -11,21 +11,18 @@ import {
     LayoutDashboard,
     Store,
     Users,
-    BarChart3,
-    Settings2,
-    Building,
     UsersRound,
     DollarSign,
     AlertCircle,
     ArrowUpRight,
     UserPlus,
-    CalendarClock,
-    Send,
     Activity,
     Filter
 } from 'lucide-react';
 import { parsePriceRange } from '@/lib/utils'; // Added for pipeline value calculation
 import { Badge } from "@/components/ui/badge";
+import DynamicConvertedRevenueCard from '@/components/admin/DynamicConvertedRevenueCard';
+
 
 // Define interfaces for fetched data
 interface DashboardKPIs {
@@ -152,7 +149,8 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
             lead_source,
             purchase_amount,
             profiles (id, full_name)
-        `);
+        `)
+        .is('deleted_at', null);
 
     const { data: allSalespeople, error: salespeopleListError } = await supabase
         .from('profiles')
@@ -179,7 +177,8 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
     // Gross Sales for Current YTD
     const { data: currentYtdSalesData, error: currentYtdSalesError } = await supabase
         .from('sales_transactions')
-        .select('total_amount')
+        .select('total_amount, customers!inner(id, deleted_at)')
+        .is('customers.deleted_at', null)
         .gte('transaction_date', currentYearStartDate)
         .lte('transaction_date', today.toISOString()); // Up to now
     const totalGrossSalesYTD = currentYtdSalesData?.reduce((sum, transaction) => sum + transaction.total_amount, 0) || 0;
@@ -187,7 +186,8 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
     // Gross Sales for Previous YTD (for comparison)
     const { data: previousYtdSalesData, error: previousYtdSalesError } = await supabase
         .from('sales_transactions')
-        .select('total_amount')
+        .select('total_amount, customers!inner(id, deleted_at)')
+        .is('customers.deleted_at', null)
         .gte('transaction_date', previousYearStartDate)
         .lte('transaction_date', previousYearEndDateComparable);
     const totalGrossSalesPreviousYTD = previousYtdSalesData?.reduce((sum, transaction) => sum + transaction.total_amount, 0) || 0;
@@ -212,6 +212,8 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
     let totalActivePipelineValue = 0;
     let countOpenOpportunities = 0;
 
+
+
     if (openOpportunitiesData) {
         countOpenOpportunities = openOpportunitiesData.length;
         openOpportunitiesData.forEach(opp => {
@@ -219,13 +221,19 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
                 opp.interest_categories_json.forEach((category: any) => {
                     if (category.products && Array.isArray(category.products)) {
                         category.products.forEach((product: any) => {
-                            totalActivePipelineValue += parsePriceRange(product.price_range);
+                            // Use revenue_opportunity if available, fallback to price_range for old data
+                            if (product.revenue_opportunity) {
+                                totalActivePipelineValue += product.revenue_opportunity;
+                            } else if (product.price_range) {
+                                totalActivePipelineValue += parsePriceRange(product.price_range);
+                            }
                         });
                     }
                 });
             }
         });
     }
+
 
     // --- Calculate Converted Revenue Metrics ---
     let totalConvertedRevenue = 0;
@@ -375,8 +383,8 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
             id,
             name,
             profiles!showrooms_manager_id_fkey ( full_name ),
-            sales_transactions ( total_amount, transaction_date ),
-            customers ( id, created_at )
+            sales_transactions ( total_amount, transaction_date, customers!inner(id, deleted_at) ),
+            customers ( id, created_at, deleted_at )
         `)
         // Removed .gte and .lte from here as it will be filtered in JS map below for YTD period
         ;
@@ -386,8 +394,11 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
         topShowroomsData = showrooms.map(sr => {
             const ytdSales = sr.sales_transactions.reduce((sum: number, st: any) => {
                 const transactionDate = new Date(st.transaction_date);
-                // Ensure transaction is within the current YTD period
-                if (transactionDate.getFullYear() === currentYear && transactionDate.toISOString() >= currentYearStartDate && transactionDate.toISOString() <= today.toISOString()) {
+                // Ensure transaction is within the current YTD period and customer is not deleted
+                if (transactionDate.getFullYear() === currentYear && 
+                    transactionDate.toISOString() >= currentYearStartDate && 
+                    transactionDate.toISOString() <= today.toISOString() &&
+                    st.customers && !st.customers.deleted_at) {
                     return sum + st.total_amount;
                 }
                 return sum;
@@ -395,8 +406,11 @@ async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
             const ytdLeads = sr.customers.reduce((count: number, cust: any) => {
                  const customerDate = new Date(cust.created_at);
-                 // Ensure customer was created within the current YTD period
-                 if (customerDate.getFullYear() === currentYear && customerDate.toISOString() >= currentYearStartDate && customerDate.toISOString() <= today.toISOString()) {
+                 // Ensure customer was created within the current YTD period and is not deleted
+                 if (customerDate.getFullYear() === currentYear && 
+                     customerDate.toISOString() >= currentYearStartDate && 
+                     customerDate.toISOString() <= today.toISOString() &&
+                     !cust.deleted_at) {
                     return count + 1;
                  }
                  return count;
@@ -526,19 +540,7 @@ export default async function AdminDashboardPage() {
                         <p className="text-xs text-muted-foreground">Across all showrooms</p>
                     </CardContent>
                 </Card>
-                <Card className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Gross Sales (YTD)</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{adminDashboardData.kpis.totalGrossSales}</div>
-                        <p className={`text-xs ${adminDashboardData.kpis.salesYtdPercentageChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {adminDashboardData.kpis.salesYtdPercentageChange >= 0 ? '+' : ''}{adminDashboardData.kpis.salesYtdPercentageChange}%
-                            {adminDashboardData.kpis.salesYtdPercentageChange !== 0 ? ' from previous YTD' : ' (vs previous YTD)'}
-                        </p>
-                    </CardContent>
-                </Card>
+                <DynamicConvertedRevenueCard />
                 <Card className="hover:shadow-lg transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">New Customers (MTD)</CardTitle>
@@ -571,75 +573,7 @@ export default async function AdminDashboardPage() {
                 </Card>
             </section>
 
-            {/* Quick Access Buttons Section */}
-            <section className="bg-card shadow-sm rounded-lg p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">Quick Access</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <Link href="/admin/showrooms" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <Store className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">Manage Showrooms</span>
-                                <p className="text-xs text-muted-foreground">View, add, or edit locations</p>
-                            </div>
-                        </Button>
-                    </Link>
-                    <Link href="/admin/managers" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <Users className="h-5 w-5 mr-3 text-primary shrink-0" />
-                             <div>
-                                <span className="font-semibold">Manage Managers</span>
-                                <p className="text-xs text-muted-foreground">Oversee manager accounts</p>
-                            </div>
-                        </Button>
-                    </Link>
-                     <Link href="/admin/customers" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <UsersRound className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">All Customers</span>
-                                <p className="text-xs text-muted-foreground">View customer database</p>
-                            </div>
-                        </Button>
-                    </Link>
-                    <Link href="/admin/appointments" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <CalendarClock className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">All Appointments</span>
-                                <p className="text-xs text-muted-foreground">Manage all schedules</p>
-                            </div>
-                        </Button>
-                    </Link>
-                    <Link href="/admin/reports" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <BarChart3 className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">Global Analytics</span>
-                                <p className="text-xs text-muted-foreground">View company-wide reports</p>
-                            </div>
-                        </Button>
-                    </Link>
-                    <Link href="/admin/communication" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full">
-                            <Send className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">Communications</span>
-                                <p className="text-xs text-muted-foreground">Send system announcements</p>
-                            </div>
-                        </Button>
-                    </Link>
-                    <Link href="/admin/settings" passHref>
-                        <Button variant="outline" className="w-full justify-start text-left py-6 hover:bg-muted/80 h-full md:col-start-3">
-                            <Settings2 className="h-5 w-5 mr-3 text-primary shrink-0" />
-                            <div>
-                                <span className="font-semibold">System Settings</span>
-                                <p className="text-xs text-muted-foreground">Configure CRM parameters</p>
-                            </div>
-                        </Button>
-                    </Link>
-                </div>
-            </section>
+
             
             {/* Alerts Section */}
             {adminDashboardData.alerts.length > 0 && (

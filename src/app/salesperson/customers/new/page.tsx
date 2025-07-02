@@ -260,6 +260,13 @@ export default function AddComprehensiveCustomerPage() {
         setError("Full Name and Phone Number are required.");
         return;
     }
+    
+    // Validate salesperson assignment
+    if (!formData.assigned_salesperson_id || formData.assigned_salesperson_id.trim() === '') {
+        setError("Salesperson assignment is required. Please wait for the page to load completely or refresh the page.");
+        return;
+    }
+    
     if (formData.interest_categories.some((ic: InterestCategoryItem) => !ic.category_type)) {
         setError("Please select a category type for all interest categories.");
         return;
@@ -355,6 +362,11 @@ export default function AddComprehensiveCustomerPage() {
                   {profile && profile.role === 'salesperson' && (
                     <p className="text-xs text-green-600 font-medium">
                       🔒 Locked: Customers are automatically assigned to you
+                    </p>
+                  )}
+                  {!formData.assigned_salesperson_id && (
+                    <p className="text-xs text-amber-600 font-medium">
+                      ⚠️ Loading salesperson assignment...
                     </p>
                   )}
                 </div>
@@ -707,9 +719,20 @@ export default function AddComprehensiveCustomerPage() {
 
           </CardContent>
           <CardFooter className="pt-6">
-            <Button type="submit" disabled={isPending} className="w-full md:w-auto">
-              {isPending ? 'Adding Customer & Visit Log...' : 'Add Customer & Visit Log'}
+            <Button 
+              type="submit" 
+              disabled={isPending || !formData.assigned_salesperson_id} 
+              className="w-full md:w-auto"
+            >
+              {isPending ? 'Adding Customer & Visit Log...' : 
+               !formData.assigned_salesperson_id ? 'Loading...' : 
+               'Add Customer & Visit Log'}
             </Button>
+            {!formData.assigned_salesperson_id && (
+              <p className="text-xs text-amber-600 mt-2 text-center">
+                Please wait for the page to load completely before submitting.
+              </p>
+            )}
           </CardFooter>
         </form>
       </Card>

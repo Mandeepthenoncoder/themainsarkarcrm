@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RotateCcw, CheckCircle } from 'lucide-react';
-import { restoreCustomerAction, RestoreCustomerResult } from '@/app/admin/customers/trash/actions';
+import { restoreCustomerAction, RestoreCustomerResult } from '@/app/admin/customers/trash/server-actions';
 
 interface RestoreCustomerButtonProps {
   customerId: string;

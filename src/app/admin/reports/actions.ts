@@ -51,8 +51,8 @@ export async function getAdminReportsPageData(): Promise<{
         };
         
         // 2. Fetch data for reports (can be filtered later with URL params)
-        const { data: sales, error: salesError } = await supabase.from('sales_transactions').select(`*, showrooms(name), profiles(full_name, supervising_manager_id)`);
-        const { data: customers, error: customersError } = await supabase.from('customers').select('id, lead_status');
+        const { data: sales, error: salesError } = await supabase.from('sales_transactions').select(`*, showrooms(name), profiles(full_name, supervising_manager_id), customers!inner(id, deleted_at)`).is('customers.deleted_at', null);
+        const { data: customers, error: customersError } = await supabase.from('customers').select('id, lead_status').is('deleted_at', null);
         
         if (salesError || customersError) {
              console.error("Error fetching report data:", salesError, customersError);

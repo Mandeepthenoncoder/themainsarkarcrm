@@ -106,7 +106,7 @@ export default function EditComprehensiveCustomerPage() {
         .eq('role', 'salesperson');
 
       const customerPromise = customerId 
-        ? supabase.from('customers').select('*').eq('id', customerId).single()
+        ? supabase.from('customers').select('*').eq('id', customerId).is('deleted_at', null).single()
         : Promise.resolve({ data: null, error: null });
 
       const [

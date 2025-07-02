@@ -53,9 +53,10 @@ export default async function AppointmentsPage() {
         service_type,
         status,
         notes,
-        customers (full_name)
+        customers!inner (full_name, deleted_at)
       `)
       .eq('salesperson_id', user.id)
+      .is('customers.deleted_at', null)
       .order('appointment_datetime', { ascending: false }); // Show newest first, or true for upcoming
 
     if (error) {

@@ -45,7 +45,7 @@ interface Task {
   description?: string;
   // relatedCustomer?: string | null; // We might fetch customer name via relation
   // relatedCustomerId?: string | null;
-  customers: { id: string; full_name: string | null } | null; // If tasks are linked to customers
+  customers: { id: string; full_name: string | null; deleted_at?: string | null } | null; // If tasks are linked to customers
 }
 
 interface Announcement {
@@ -121,19 +121,26 @@ export default async function SalespersonDashboardPage() {
   const { data: customersData, error: customersError } = await supabase
     .from('customers')
     .select('id, full_name, created_at, interest_categories_json, follow_up_date, purchase_amount') // Added purchase_amount
-    .eq('assigned_salesperson_id', user.id) as { data: (Customer & { follow_up_date?: string | null; purchase_amount?: number | null })[] | null; error: any };
+    .eq('assigned_salesperson_id', user.id)
+    .is('deleted_at', null) as { data: (Customer & { follow_up_date?: string | null; purchase_amount?: number | null })[] | null; error: any };
 
   const { data: appointmentsData, error: appointmentsError } = await supabase
     .from('appointments')
-    .select('id, appointment_datetime, status, service_type, customers (full_name)')
+    .select('id, appointment_datetime, status, service_type, customers!inner (full_name, deleted_at)')
     .eq('salesperson_id', user.id)
+    .is('customers.deleted_at', null)
     .order('appointment_datetime', { ascending: true }) as { data: Appointment[] | null; error: any };
 
-  const { data: actualTasksData, error: tasksError } = await supabase
+  const { data: rawTasksData, error: tasksError } = await supabase
     .from('tasks')
-    .select('id, title, due_date, status, priority, description, customers (id, full_name)')
+    .select('id, title, due_date, status, priority, description, customers (id, full_name, deleted_at)')
     .eq('assigned_to_user_id', user.id)
     .order('due_date', { ascending: true }) as { data: Task[] | null; error: any };
+
+  // Filter out tasks related to deleted customers
+  const actualTasksData = rawTasksData?.filter(task => 
+    !task.customers || !task.customers.deleted_at
+  ) || null;
     
   const { data: announcementsData, error: announcementsError } = await supabase
     .from('announcements')
@@ -154,7 +161,12 @@ export default async function SalespersonDashboardPage() {
         customer.interest_categories_json.forEach((category: any) => {
           if (category.products && Array.isArray(category.products)) {
             category.products.forEach((product: any) => {
-              totalPipelineValue += parsePriceRange(product.price_range);
+              // Use revenue_opportunity if available, fallback to price_range for old data
+              if (product.revenue_opportunity) {
+                totalPipelineValue += product.revenue_opportunity;
+              } else if (product.price_range) {
+                totalPipelineValue += parsePriceRange(product.price_range);
+              }
             });
           }
         });
@@ -243,9 +255,9 @@ export default async function SalespersonDashboardPage() {
         </header>
 
         {/* Key Metrics Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 md:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 md:gap-6">
           {/* Total Converted Revenue Card - FEATURED */}
-          <Card className="lg:col-span-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <Card className="lg:col-span-2 xl:col-span-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center text-green-800">💰 Converted Revenue</CardTitle>
             </CardHeader>
@@ -255,14 +267,14 @@ export default async function SalespersonDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Total Pipeline Value Card */}
-          <Card>
+          {/* Total Pipeline Value Card - FEATURED */}
+          <Card className="lg:col-span-2 xl:col-span-2 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">Pipeline Value</CardTitle>
+              <CardTitle className="text-lg flex items-center text-blue-800">📊 Pipeline Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-primary">{formatCurrency(totalPipelineValue)}</p>
-              <p className="text-xs text-muted-foreground">Estimated from interests</p>
+              <p className="text-4xl font-bold text-blue-700">{formatCurrency(totalPipelineValue)}</p>
+              <p className="text-sm text-blue-600 mt-1">Total potential revenue from open opportunities</p>
             </CardContent>
           </Card>
         

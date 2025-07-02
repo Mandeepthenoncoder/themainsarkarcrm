@@ -26,7 +26,7 @@ interface TaskFromDB {
   status: string;
   // relatedCustomer?: string | null; // Original structure
   // relatedCustomerId?: string | null; // Original structure
-  customers: { id: string; full_name: string | null; } | null; // For tasks linked to customers in DB
+  customers: { id: string; full_name: string | null; deleted_at?: string | null; } | null; // For tasks linked to customers in DB
 }
 
 interface DisplayTask extends TaskFromDB { // This will be our combined type
@@ -79,18 +79,24 @@ export default async function SalespersonTasksPage() {
   const todayDateString = now.toISOString().split('T')[0];
 
   // 1. Fetch actual tasks
-  const { data: actualTasksData, error: tasksFetchError } = await supabase
+  const { data: rawTasksData, error: tasksFetchError } = await supabase
     .from('tasks')
-    .select('id, title, description, due_date, priority, status, customers (id, full_name)')
+    .select('id, title, description, due_date, priority, status, customers (id, full_name, deleted_at)')
     .eq('assigned_to_user_id', user.id)
     .order('due_date', { ascending: true })
     .returns<TaskFromDB[]>(); // Ensure Supabase client can use .returns for typing
+
+  // Filter out tasks related to deleted customers
+  const actualTasksData = rawTasksData?.filter(task => 
+    !task.customers || !task.customers.deleted_at
+  ) || null;
 
   // 2. Fetch customers for follow-up tasks
   const { data: customersForFollowup, error: customersFetchError } = await supabase
     .from('customers')
     .select('id, full_name, follow_up_date')
     .eq('assigned_salesperson_id', user.id)
+    .is('deleted_at', null)
     .not('follow_up_date', 'is', null) // Only customers with a follow-up date
     .returns<CustomerForFollowUp[]>();
 

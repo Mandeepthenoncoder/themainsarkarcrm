@@ -183,6 +183,7 @@ export default async function CustomerDetailPage({ params }: { params: { custome
       purchase_amount
     `)
     .eq('id', customerId)
+    .is('deleted_at', null)
     .single<Customer>();
 
   if (error || !customer) {

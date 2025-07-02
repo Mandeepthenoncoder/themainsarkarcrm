@@ -64,6 +64,7 @@ export default async function ManagerDashboardPage() {
     totalUpcomingTeamAppointments,
     totalPendingTeamFollowUps,
     newCustomersLast30Days,
+    totalTeamRevenueOpportunity,
     totalTeamConvertedRevenue,
     teamConvertedCustomersCount,
     teamConversionRate,
@@ -82,6 +83,7 @@ export default async function ManagerDashboardPage() {
 
   const kpis = [
     { title: '💰 Team Converted Revenue', value: formatCurrency(totalTeamConvertedRevenue), displayValue: formatCurrency(totalTeamConvertedRevenue), subtitle: `${teamConvertedCustomersCount} customers • ${teamConversionRate}% rate`, icon: DollarSign, href: '/manager/customers', featured: true },
+    { title: '📊 Team Pipeline Revenue', value: formatCurrency(totalTeamRevenueOpportunity), displayValue: formatCurrency(totalTeamRevenueOpportunity), subtitle: 'Total potential revenue from open opportunities', icon: LineChart, href: '/manager/customers', featured: false },
     { title: 'Team Members', value: teamMembers.length, icon: Users, href: '/manager/salespeople' },
     { title: 'Total Team Customers', value: totalTeamCustomers, icon: Contact, href: '/manager/customers' },
     { title: 'Upcoming Appointments', value: totalUpcomingTeamAppointments, icon: CalendarCheck, href: '/manager/appointments' },
